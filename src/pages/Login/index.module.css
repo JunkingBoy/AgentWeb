@@ -1,0 +1,397 @@
+/* 页面容器 — 全屏居中 */
+.page {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #eef2ff 50%, #f5f7fa 100%);
+  padding: 20px;
+}
+
+/* 手机模式下键盘弹起时确保内容可滚动 */
+@media (max-height: 640px) {
+  .page {
+    align-items: flex-start;
+    padding: 12px;
+  }
+  .card {
+    padding: 24px 20px;
+  }
+}
+
+/* 背景光晕装饰 */
+.bgGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.5; scale: 1; }
+  50% { opacity: 1; scale: 1.08; }
+}
+
+/* 登录卡片 */
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 36px 32px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.06);
+  animation: cardEnter 0.4s ease-out;
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Logo 区域 */
+.logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.logoIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  margin-bottom: 10px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: default;
+}
+
+.logoIcon:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+}
+
+.logoHi {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.logoText {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 2px;
+  letter-spacing: -0.3px;
+}
+
+.logoDesc {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Tab 切换 */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: #334155;
+}
+
+.tabActive {
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 表单 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 覆盖 shadcn Input 浅色样式 */
+.field input {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.field input::placeholder {
+  color: #94a3b8;
+}
+
+.field input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  background: #ffffff;
+}
+
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1e293b;
+  -webkit-box-shadow: 0 0 0px 1000px #f8fafc inset;
+}
+
+/* Labels */
+.field label {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* 错误提示 */
+.error {
+  color: #ef4444;
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+/* 密码输入框 + 查看按钮容器 */
+.pwdWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwdWrapper input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.pwdToggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.pwdToggle:hover {
+  color: #475569;
+}
+
+.pwdToggle:active {
+  color: #6366f1;
+}
+
+/* 忘记密码 */
+/* 条件字段容器（邮箱、确认密码） — 平滑展开/收起 */
+.fieldConditional {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.35s ease,
+    opacity 0.25s ease 0.05s;
+}
+
+.fieldConditional.visible {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* 内部的 .field 保持和普通字段完全一致 */
+.fieldConditional .field {
+  min-height: 0;
+  overflow: visible;
+}
+
+/* 表单整体切换过渡 */
+.formWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: gap 0.35s ease;
+}
+
+.forgot {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 4px;
+  margin: -8px -4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.forgot:hover {
+  background: rgba(99, 102, 241, 0.08);
+  text-decoration: underline;
+}
+
+/* 服务端错误提示 */
+.serverError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 0;
+  text-align: center;
+}
+
+/* 成功提示 */
+.successBox {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 0;
+  text-align: center;
+}
+
+/* 提交按钮 */
+.submit {
+  width: 100%;
+  padding: 11px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 2px;
+}
+
+.submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.submit:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 协议勾选 — 卡片底部居中 */
+.agreementLine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 圆形勾选控件 */
+.radioCircle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.radioChecked {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.agreementText {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,395 @@
+/* 页面容器 — 全屏居中（与 Login 保持一致） */
+.page {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #eef2ff 50%, #f5f7fa 100%);
+  padding: 20px;
+}
+
+@media (max-height: 640px) {
+  .page {
+    align-items: flex-start;
+    padding: 12px;
+  }
+  .card {
+    padding: 24px 20px;
+  }
+}
+
+/* 背景光晕 */
+.bgGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.5; scale: 1; }
+  50% { opacity: 1; scale: 1.08; }
+}
+
+/* 卡片 — 与 Login 卡片一致 */
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 36px 32px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.06);
+  animation: cardEnter 0.4s ease-out;
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 步骤切换动画 */
+.stepWrapper {
+  animation: stepFadeIn 0.35s ease-out;
+}
+
+@keyframes stepFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 返回登录 */
+.backRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.backBtn:hover {
+  color: #6366f1;
+}
+
+/* 标题 */
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0 0 24px;
+}
+
+/* 表单 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.field input {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  transition: all 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.field input::placeholder {
+  color: #94a3b8;
+}
+
+.field input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  background: #ffffff;
+  outline: none;
+}
+
+.field input.inputError {
+  border-color: #ef4444;
+}
+
+.field input.inputError:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.error {
+  color: #ef4444;
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+/* 密码包装器（眼睛按钮） */
+.pwdWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwdWrapper input {
+  padding-right: 40px;
+}
+
+.pwdToggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.pwdToggle:hover {
+  color: #475569;
+}
+
+.pwdToggle:active {
+  color: #6366f1;
+}
+
+/* 发送验证码按钮 */
+.sendCodeRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.sendCodeInput {
+  flex: 1;
+}
+
+.sendCodeBtn {
+  flex-shrink: 0;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-top: 22px; /* 与 label + input 的顶部对齐 */
+}
+
+.sendCodeBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.sendCodeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 验证码单独一行（Step 2） */
+.codeRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.codeInput {
+  flex: 1;
+}
+
+/* 验证码重发按钮 */
+.resendBtn {
+  flex-shrink: 0;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-top: 22px;
+}
+
+.resendBtn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.resendBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 提交按钮 */
+.submit {
+  width: 100%;
+  padding: 11px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 2px;
+}
+
+.submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.submit:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 提示信息 */
+.serverError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 0;
+  text-align: center;
+}
+
+.successBox {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 0;
+  text-align: center;
+}
+
+/* 倒计时文本 */
+.cooldownText {
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+  margin: 0;
+}
+
+/* 分隔线 */
+.divider {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 16px 0;
+}
+
+/* 提示文本 */
+.hint {
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+  margin: 4px 0 0;
+}
+
+/* 验证码发送目的地提示 */
+.destination {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+}
+
+.destLabel {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.destValue {
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.destRow {
+  margin-top: 4px;
+}
+
+.destRow:first-child {
+  margin-top: 2px;
+}

@@ -1,0 +1,301 @@
+/* ===== 容器 ===== */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+/* ===== 顶部栏：统计 + 保存全部按钮 ===== */
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary {
+  font-size: 13px;
+  color: #64748b;
+  user-select: none;
+  flex: 1;
+}
+
+.summary strong {
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.deletedCount {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.saveAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+
+.saveAllBtn:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.saveAllBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== 保存反馈消息 ===== */
+.saveMsg {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.saveMsgOk {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.saveMsgErr {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 分割线 ===== */
+.separator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.separator::before,
+.separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+/* ===== 单条测试用例 ===== */
+.item {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fafbfc;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+
+.item:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+/* 已删除的条目 */
+.itemDeleted {
+  opacity: 0.5;
+  order: 1;
+}
+
+/* ===== 条目头部：序号 + 标签 + 操作按钮 ===== */
+.itemHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.index {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366f1;
+  margin-right: 2px;
+}
+
+.priBadge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.typeBadge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.deletedBadge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.headerActions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actionBtnDanger:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* ===== 条目内容 ===== */
+.itemBody {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.itemDeleted .itemBody {
+  text-decoration: line-through;
+}
+
+/* ===== 编辑模式 ===== */
+.itemEditing {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px #6366f1;
+}
+
+.editArea {
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editInput {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  line-height: 1.6;
+  color: #1e293b;
+  background: #ffffff;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.editInput:focus {
+  border-color: #6366f1;
+}
+
+.editError {
+  font-size: 12px;
+  color: #dc2626;
+  line-height: 1.4;
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.cancelBtn,
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  border: 1px solid transparent;
+}
+
+.cancelBtn {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.saveBtn {
+  background: #6366f1;
+  color: #fff;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.saveBtn:disabled,
+.cancelBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
