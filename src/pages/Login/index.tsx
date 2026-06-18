@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { registerUser, loginUser } from '@/api/user'
 import { getAesKey } from '@/utils/keyManager'
 import { encrypt } from '@/utils/crypto'
+import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
 import styles from './index.module.css'
 
 /* ===== Schema 定义（对应后端 UserRegister / UserLogin） ===== */
@@ -134,7 +135,7 @@ export default function Login() {
         {/* Logo */}
         <div className={styles.logo}>
           <div className={styles.logoIcon}>
-            <span className={styles.logoHi}>Hi</span>
+            <NeuralNetworkIcon />
           </div>
           <h1 className={styles.logoText}>AI Test Assistant</h1>
           <p className={styles.logoDesc}>智能对话 · 高效工作</p>

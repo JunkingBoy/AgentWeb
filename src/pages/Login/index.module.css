@@ -80,26 +80,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
-  color: white;
-  margin-bottom: 10px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  margin-bottom: 12px;
   cursor: default;
-}
-
-.logoIcon:hover {
-  transform: scale(1.08);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
-}
-
-.logoHi {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  line-height: 1;
 }
 
 .logoText {
