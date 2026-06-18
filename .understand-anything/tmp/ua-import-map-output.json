@@ -1,0 +1,95 @@
+{
+  "scriptCompleted": true,
+  "stats": {
+    "filesScanned": 58,
+    "filesWithImports": 13,
+    "totalEdges": 14
+  },
+  "importMap": {
+    "components.json": [],
+    "eslint.config.js": [],
+    "index.html": [],
+    "package.json": [],
+    "README.md": [],
+    "src/api/agent.ts": [
+      "src/api/client.ts"
+    ],
+    "src/api/chat.ts": [
+      "src/api/client.ts"
+    ],
+    "src/api/client.ts": [],
+    "src/api/instruction.ts": [
+      "src/api/client.ts"
+    ],
+    "src/api/user.ts": [
+      "src/api/client.ts"
+    ],
+    "src/App.tsx": [],
+    "src/components/common/ChangePasswordDialog.tsx": [
+      "src/components/common/CommonDialog.tsx"
+    ],
+    "src/components/common/ChangeUsernameDialog.tsx": [
+      "src/components/common/CommonDialog.tsx"
+    ],
+    "src/components/common/CommonDialog.tsx": [],
+    "src/components/common/ModeSelector.module.css": [],
+    "src/components/common/ModeSelector.tsx": [
+      "src/components/common/ModeSelector.module.css"
+    ],
+    "src/components/common/TestCaseCard.module.css": [],
+    "src/components/common/TestCaseCard.tsx": [
+      "src/components/common/TestCaseCard.module.css"
+    ],
+    "src/components/Layout/index.tsx": [],
+    "src/components/Sidebar/index.module.css": [],
+    "src/components/Sidebar/index.tsx": [
+      "src/components/Sidebar/index.module.css"
+    ],
+    "src/components/ui/button.tsx": [],
+    "src/components/ui/dialog.tsx": [],
+    "src/components/ui/dropdown-menu.tsx": [],
+    "src/components/ui/input.tsx": [],
+    "src/components/ui/label.tsx": [],
+    "src/components/ui/select.tsx": [],
+    "src/components/ui/separator.tsx": [],
+    "src/components/ui/sheet.tsx": [],
+    "src/components/ui/sidebar.tsx": [],
+    "src/components/ui/skeleton.tsx": [],
+    "src/components/ui/sonner.tsx": [],
+    "src/components/ui/textarea.tsx": [],
+    "src/components/ui/tooltip.tsx": [],
+    "src/hooks/use-mobile.ts": [],
+    "src/hooks/useStreamConnection.ts": [],
+    "src/hooks/useWebSocket.ts": [],
+    "src/index.css": [],
+    "src/lib/utils.ts": [],
+    "src/main.tsx": [
+      "src/App.tsx",
+      "src/index.css"
+    ],
+    "src/pages/Chat/index.module.css": [],
+    "src/pages/Chat/index.tsx": [
+      "src/pages/Chat/index.module.css"
+    ],
+    "src/pages/ForgotPassword/index.module.css": [],
+    "src/pages/ForgotPassword/index.tsx": [
+      "src/pages/ForgotPassword/index.module.css"
+    ],
+    "src/pages/Login/index.module.css": [],
+    "src/pages/Login/index.tsx": [
+      "src/pages/Login/index.module.css"
+    ],
+    "src/routes/index.tsx": [],
+    "src/stores/authStore.ts": [],
+    "src/stores/chatStore.ts": [],
+    "src/styles/globals.css": [],
+    "src/styles/variables.css": [],
+    "src/types/api.ts": [],
+    "src/utils/crypto.ts": [],
+    "src/utils/keyManager.ts": [],
+    "tsconfig.app.json": [],
+    "tsconfig.json": [],
+    "tsconfig.node.json": [],
+    "vite.config.ts": []
+  }
+}

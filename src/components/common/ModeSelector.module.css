@@ -4,11 +4,11 @@
   gap: 5px;
   padding: 5px 10px;
   border-radius: 6px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 500;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-light);
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
@@ -16,8 +16,8 @@
 }
 
 .trigger:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
+  background: var(--color-border-light);
+  border-color: var(--color-text-muted);
 }
 
 .trigger:focus-visible {
@@ -42,8 +42,8 @@
   min-width: auto;
   border-radius: 8px;
   padding: 4px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg-primary);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
@@ -55,7 +55,7 @@
   padding: 8px 12px !important;
   border-radius: 6px !important;
   cursor: pointer !important;
-  color: #334155;
+  color: var(--color-text-primary);
   transition: background 0.1s;
   overflow: hidden;
 }
@@ -68,18 +68,18 @@
 }
 
 .menuItem:hover {
-  background: #f1f5f9;
+  background: var(--color-bg-hover);
   outline: none;
 }
 
 .menuItem[data-highlighted] {
-  background: #f1f5f9;
+  background: var(--color-bg-hover);
   outline: none;
 }
 
 .menuItem[data-state="checked"] {
   font-weight: 500;
-  color: #6366f1;
+  color: var(--color-primary);
 }
 
 .menuItem [data-slot="dropdown-menu-checkbox-item-indicator"] {

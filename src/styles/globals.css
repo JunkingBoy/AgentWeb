@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @import "./variables.css";
 
+/* 让 Tailwind dark: 变体识别 .dark class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 全局颜色过渡 */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 输入框自动填充不受过渡影响 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  transition: background-color 50000s ease-in-out 0s, color 5000s ease-in-out 0s;
+}
+
 body {
   font-family: system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;

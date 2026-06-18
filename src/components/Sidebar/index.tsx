@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useChatStore } from '@/stores/chatStore'
 import ChangeUsernameDialog from '@/components/common/ChangeUsernameDialog'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog'
+import ThemeToggle from '@/components/common/ThemeToggle'
 import styles from './index.module.css'
 
 /* 头像配色池 — 根据用户名取模确定颜色 */
@@ -141,33 +142,36 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* 底部：用户信息 + 退出 */}
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger asChild>
-          <div className={styles.footer}>
-            <div className={styles.avatar} style={{ background: avatarColor }}>{avatarLetter}</div>
-            <div className={styles.userMeta}>
-              <span className={styles.userName}>{username}</span>
-              <span className={styles.userStatus}>在线</span>
+      {/* 底部：用户信息 + 主题切换 + 退出 */}
+      <div className={styles.footer}>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <div className={styles.footerLeft}>
+              <div className={styles.avatar} style={{ background: avatarColor }}>{avatarLetter}</div>
+              <div className={styles.userMeta}>
+                <span className={styles.userName}>{username}</span>
+                <span className={styles.userStatus}>在线</span>
+              </div>
             </div>
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="top" className={styles.dropMenu}>
-          <DropdownMenuItem className={styles.menuItem} onClick={() => { setMenuOpen(false); setShowUsername(true) }}>
-            <User size={14} />
-            <span>修改用户名</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className={styles.menuItem} onClick={() => { setMenuOpen(false); setShowPassword(true) }}>
-            <KeyRound size={14} />
-            <span>修改密码</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className={cn(styles.menuItem, styles.menuDanger)} onClick={logout}>
-            <LogOut size={14} />
-            <span>退出登录</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top" className={styles.dropMenu}>
+            <DropdownMenuItem className={styles.menuItem} onClick={() => { setMenuOpen(false); setShowUsername(true) }}>
+              <User size={14} />
+              <span>修改用户名</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className={styles.menuItem} onClick={() => { setMenuOpen(false); setShowPassword(true) }}>
+              <KeyRound size={14} />
+              <span>修改密码</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className={cn(styles.menuItem, styles.menuDanger)} onClick={logout}>
+              <LogOut size={14} />
+              <span>退出登录</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <ThemeToggle />
+      </div>
 
       {/* 修改用户名弹框 */}
       <ChangeUsernameDialog open={showUsername} onOpenChange={setShowUsername} />
