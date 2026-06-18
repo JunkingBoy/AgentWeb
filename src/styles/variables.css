@@ -1,17 +1,98 @@
 :root {
+  /* ===== 基础背景色 ===== */
   --color-bg-primary: #ffffff;
   --color-bg-secondary: #f9fafb;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-hover: #f1f5f9;
+
+  /* ===== 文字色 ===== */
   --color-text-primary: #111827;
   --color-text-secondary: #6b7280;
+  --color-text-tertiary: #94a3b8;
+  --color-text-muted: #cbd5e1;
+
+  /* ===== 边框色 ===== */
   --color-border: #e5e7eb;
+  --color-border-light: #e2e8f0;
+
+  /* ===== 品牌主色 ===== */
+  --color-primary: #6366f1;
+  --color-primary-hover: #4f46e5;
+  --color-primary-bg: #eef2ff;
+  --color-primary-text: #ffffff;
+
+  /* ===== 消息气泡 ===== */
+  --color-bubble-agent: #f1f5f9;
+  --color-bubble-user: #6366f1;
+  --color-bubble-user-text: #ffffff;
+
+  /* ===== 输入区域 ===== */
+  --color-input-bg: #ffffff;
+  --color-input-border: #e2e8f0;
+  --color-input-focus: #6366f1;
+
+  /* ===== 侧边栏 ===== */
+  --color-sidebar-bg: #f8fafc;
+  --color-sidebar-border: #e2e8f0;
+  --color-sidebar-item-hover: #f1f5f9;
+  --color-sidebar-item-active: #eef2ff;
+  --color-sidebar-item-text: #334155;
+  --color-sidebar-item-text-active: #1e293b;
+  --color-sidebar-header-bg: #ffffff;
+
+  /* ===== 特殊着色 ===== */
+  --color-header-bg: #fafbfc;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fecaca;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg-primary: #0f172a;
-    --color-bg-secondary: #1e293b;
-    --color-text-primary: #f1f5f9;
-    --color-text-secondary: #94a3b8;
-    --color-border: #334155;
-  }
+/* ===== 暗色模式（class 策略，由 next-themes 控制） ===== */
+.dark {
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #1e293b;
+  --color-bg-hover: #334155;
+
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-tertiary: #64748b;
+  --color-text-muted: #475569;
+
+  --color-border: #334155;
+  --color-border-light: #334155;
+
+  --color-primary: #818cf8;
+  --color-primary-hover: #6366f1;
+  --color-primary-bg: rgba(99, 102, 241, 0.15);
+  --color-primary-text: #ffffff;
+
+  --color-bubble-agent: #1e293b;
+  --color-bubble-user: #6366f1;
+  --color-bubble-user-text: #ffffff;
+
+  --color-input-bg: #1e293b;
+  --color-input-border: #334155;
+  --color-input-focus: #818cf8;
+
+  --color-sidebar-bg: #0f172a;
+  --color-sidebar-border: #1e293b;
+  --color-sidebar-item-hover: #1e293b;
+  --color-sidebar-item-active: rgba(99, 102, 241, 0.15);
+  --color-sidebar-item-text: #94a3b8;
+  --color-sidebar-item-text-active: #f1f5f9;
+  --color-sidebar-header-bg: #0f172a;
+
+  --color-header-bg: #0f172a;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #f87171;
+  --color-error-bg: rgba(239, 68, 68, 0.15);
+  --color-error-border: rgba(239, 68, 68, 0.3);
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-success-border: rgba(34, 197, 94, 0.3);
 }

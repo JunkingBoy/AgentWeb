@@ -29,6 +29,7 @@ import { toast } from 'sonner'
 import type { ContextUsage, InstructionSetItem } from '@/types/api'
 import ModeSelector from '@/components/common/ModeSelector'
 import TestCaseView from '@/components/common/TestCaseCard'
+import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
 import styles from './index.module.css'
 
 /* ===== 类型定义 ===== */
@@ -786,30 +787,33 @@ export default function Chat() {
       {/* ===== 内容区域 ===== */}
       {isWelcome ? (
         <div className={styles.welcome}>
-          <div className={styles.welcomeIcon}>
-            <Sparkles size={28} color="#6366f1" />
-          </div>
-          <h2 className={styles.welcomeTitle}>有什么我可以帮助你的？</h2>
-          <p className={styles.welcomeDesc}>
-            {isConnected
-              ? '已连接到服务端，可以开始对话了！'
-              : '我是 AI 测试助手，可以帮你解答技术问题、编写代码、优化架构等。'}
-          </p>
-          {!isConnected && (
-            <p className={styles.welcomeDesc} style={{ fontSize: 12, color: '#f59e0b' }}>
-              正在连接服务端... 未连接时将使用本地模式回复
+          <NeuralNetworkIcon variant="background" />
+          <div className={styles.welcomeContent}>
+            <div className={styles.welcomeIcon}>
+              <NeuralNetworkIcon />
+            </div>
+            <h2 className={styles.welcomeTitle}>有什么我可以帮助你的？</h2>
+            <p className={styles.welcomeDesc}>
+              {isConnected
+                ? '已连接到服务端，可以开始对话了！'
+                : '我是 AI 测试助手，可以帮你解答技术问题、编写代码、优化架构等。'}
             </p>
-          )}
-          <div className={styles.welcomeSuggestions}>
-            {suggestions.map((text, i) => (
-              <button
-                key={i}
-                className={styles.suggestionChip}
-                onClick={() => handleSuggestionClick(text)}
-              >
-                {text}
-              </button>
-            ))}
+            {!isConnected && (
+              <p className={styles.welcomeDesc} style={{ fontSize: 12, color: '#f59e0b' }}>
+                正在连接服务端... 未连接时将使用本地模式回复
+              </p>
+            )}
+            <div className={styles.welcomeSuggestions}>
+              {suggestions.map((text, i) => (
+                <button
+                  key={i}
+                  className={styles.suggestionChip}
+                  onClick={() => handleSuggestionClick(text)}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : (
