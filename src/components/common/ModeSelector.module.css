@@ -44,7 +44,7 @@
 }
 
 .dropMenu {
-  min-width: auto;
+  min-width: max-content;
   border-radius: 8px;
   padding: 4px;
   border: 1px solid var(--color-border-light);
