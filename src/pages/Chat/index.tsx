@@ -19,6 +19,7 @@ import {
   Trash2,
   Square,
   Download,
+  Menu,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
@@ -30,6 +31,7 @@ import type { ContextUsage, InstructionSetItem } from '@/types/api'
 import ModeSelector from '@/components/common/ModeSelector'
 import TestCaseView from '@/components/common/TestCaseCard'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
+import { useSidebarContext } from '@/contexts/SidebarContext'
 import styles from './index.module.css'
 
 /* ===== 类型定义 ===== */
@@ -329,6 +331,7 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
+  const { isMobile: isMobileView, setIsOpen: setSidebarOpen } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -673,6 +676,14 @@ export default function Chat() {
       {/* ===== 头部 ===== */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
+          {/* 移动端汉堡按钮 */}
+          <button
+            className={styles.hamburgerBtn}
+            onClick={() => setSidebarOpen(true)}
+            title="打开侧边栏"
+          >
+            <Menu size={18} />
+          </button>
           <div className={styles.headerInfo}>
             <div className={styles.headerTitle}>
               AI 测试助手
@@ -707,6 +718,7 @@ export default function Chat() {
             currentMode={currentMode}
             onModeChange={setCurrentMode}
             loaded={modesLoaded}
+            compact={isMobileView}
           />
 
           {/* 导出指令集 */}

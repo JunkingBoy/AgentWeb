@@ -68,6 +68,67 @@
   gap: 6px;
 }
 
+/* ===== 汉堡按钮（移动端） ===== */
+.hamburgerBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.hamburgerBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+/* ===== 移动端响应式 ===== */
+@media (max-width: 767px) {
+  .header {
+    padding: 12px 12px;
+  }
+
+  .hamburgerBtn {
+    display: flex;
+  }
+
+  .headerLeft {
+    gap: 8px;
+  }
+
+  .headerRight {
+    gap: 3px;
+  }
+
+  /* 头部右侧按钮只显示图标，隐藏文字 */
+  .modelBadge span,
+  .statusBtn span,
+  .exportBtn span {
+    display: none;
+  }
+
+  .statusBtn,
+  .exportBtn,
+  .modelBadge {
+    padding: 5px 6px;
+  }
+
+  .headerSubtitle {
+    display: none;
+  }
+
+  .inputArea {
+    padding: 8px 12px 12px;
+  }
+}
+
 .modelBadge {
   display: flex;
   align-items: center;

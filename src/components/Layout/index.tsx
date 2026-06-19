@@ -1,13 +1,21 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Outlet } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { fetchUserInfo } from '@/api/user'
+import { useIsMobile } from '@/hooks/use-mobile'
+import SidebarContext from '@/contexts/SidebarContext'
+import {
+  Sheet,
+  SheetContent,
+} from '@/components/ui/sheet'
 
 export default function Layout() {
   const navigate = useNavigate()
   const setUser = useAuthStore(s => s.setUser)
   const loaded = useAuthStore(s => s.loaded)
+  const isMobile = useIsMobile()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -29,11 +37,25 @@ export default function Layout() {
   }, [])
 
   return (
-    <div className="flex h-screen" style={{ background: 'var(--color-bg-secondary)' }}>
-      <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0">
-        <Outlet />
-      </main>
-    </div>
+    <SidebarContext.Provider value={{ isOpen: sidebarOpen, setIsOpen: setSidebarOpen, isMobile }}>
+      <div className="flex h-screen" style={{ background: 'var(--color-bg-secondary)' }}>
+        {/* 桌面端：侧边栏直接渲染 */}
+        {!isMobile && <Sidebar />}
+
+        {/* 移动端：侧边栏通过 Sheet 抽屉展示 */}
+        {isMobile && (
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent side="left" className="p-0 w-[280px]">
+              <Sidebar />
+            </SheetContent>
+          </Sheet>
+        )}
+
+        {/* 主内容区域 */}
+        <main className="flex-1 flex flex-col min-w-0">
+          <Outlet />
+        </main>
+      </div>
+    </SidebarContext.Provider>
   )
 }

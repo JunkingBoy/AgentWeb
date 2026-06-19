@@ -38,6 +38,8 @@ type LoginFields = LoginForm | RegisterForm
 
 export default function Login() {
   const navigate = useNavigate()
+  const cardRef = useRef<HTMLDivElement>(null)
+  const submitRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'login' | 'register'>('login')
   const [agreed, setAgreed] = useState(false)
   const [serverError, setServerError] = useState('')
@@ -69,20 +71,25 @@ export default function Login() {
   }
 
   const onSubmit = async (data: LoginForm | RegisterForm) => {
+    console.log('[Login] onSubmit called', { isLogin, data: { ...data, password: '***' } })
     setServerError('')
     setSuccessMsg('')
 
     if (isLogin) {
       // ===== 登录流程 =====
       try {
+        console.log('[Login] getting AES key...')
         const aesKey = await getAesKey()
+        console.log('[Login] got AES key, encrypting...')
         const encryptedPhone = await encrypt(data.phone, aesKey)
         const encryptedPassword = await encrypt(data.password, aesKey)
 
+        console.log('[Login] calling loginUser API...')
         const res = await loginUser({
           phone: encryptedPhone,
           password: encryptedPassword,
         })
+        console.log('[Login] API response:', res)
 
         if (res.code === 1001 && res.data?.token) {
           localStorage.setItem('token', res.data.token)
@@ -98,6 +105,7 @@ export default function Login() {
     }
 
     // ===== 注册流程 =====
+    console.log('[Login] registering...')
     try {
       const aesKey = await getAesKey()
 
@@ -112,6 +120,7 @@ export default function Login() {
         password: encryptedPassword,
         password_confirm: encryptedConfirm,
       })
+      console.log('[Login] register response:', res)
 
       if (res.code === 1001) {
         // 注册成功 → 提示后切回登录
@@ -131,7 +140,7 @@ export default function Login() {
       <div className={styles.bgGlow} />
 
       {/* 卡片 */}
-      <div className={styles.card}>
+      <div ref={cardRef} className={styles.card}>
         {/* Logo */}
         <div className={styles.logo}>
           <div className={styles.logoIcon}>
@@ -160,7 +169,7 @@ export default function Login() {
         </div>
 
         {/* 表单 */}
-        <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+        <form className={styles.form} onSubmit={(e) => { console.log('[Login] form onSubmit event', { isSubmitting, agreed }); handleSubmit(onSubmit)(e) }}>
           <div className={styles.formWrapper}>
           {/* 手机号（登录 + 注册共有） */}
           <div className={styles.field}>
@@ -273,17 +282,19 @@ export default function Login() {
             <p className={styles.serverError}>{serverError}</p>
           )}
 
-          <Button
-            type="submit"
-            className={styles.submit}
-            disabled={isSubmitting || !agreed}
-          >
-            {isSubmitting
-              ? '处理中...'
-              : isLogin
-                ? '登录'
-                : '注册'}
-          </Button>
+          <div ref={submitRef} onClick={() => console.log('[Login] submit wrapper clicked', { isSubmitting, agreed, isLogin })}>
+            <Button
+              type="submit"
+              className={styles.submit}
+              disabled={isSubmitting || !agreed}
+            >
+              {isSubmitting
+                ? '处理中...'
+                : isLogin
+                  ? '登录'
+                  : '注册'}
+            </Button>
+          </div>
         </form>
 
         {/* 协议勾选 — 卡片底部居中 */}

@@ -14,9 +14,10 @@ interface ModeSelectorProps {
   currentMode: string
   onModeChange: (mode: string) => void
   loaded: boolean
+  compact?: boolean
 }
 
-export default function ModeSelector({ modes, currentMode, onModeChange, loaded }: ModeSelectorProps) {
+export default function ModeSelector({ modes, currentMode, onModeChange, loaded, compact }: ModeSelectorProps) {
   const displayName = loaded
     ? modes.find(m => m.name === currentMode)?.display_name || currentMode
     : '加载中...'
@@ -24,10 +25,10 @@ export default function ModeSelector({ modes, currentMode, onModeChange, loaded 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className={styles.trigger}>
+        <button className={`${styles.trigger} ${compact ? styles.compact : ''}`}>
           <Sparkles size={13} />
-          <span>{displayName}</span>
-          <ChevronDown size={12} className={styles.chevron} />
+          {!compact && <span>{displayName}</span>}
+          {!compact && <ChevronDown size={12} className={styles.chevron} />}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={styles.dropMenu}>
