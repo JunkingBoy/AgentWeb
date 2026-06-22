@@ -16,6 +16,7 @@ export default function Layout() {
   const loaded = useAuthStore(s => s.loaded)
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -37,10 +38,10 @@ export default function Layout() {
   }, [])
 
   return (
-    <SidebarContext.Provider value={{ isOpen: sidebarOpen, setIsOpen: setSidebarOpen, isMobile }}>
+    <SidebarContext.Provider value={{ isOpen: sidebarOpen, setIsOpen: setSidebarOpen, isMobile, collapsed, setCollapsed }}>
       <div className="flex h-screen" style={{ background: 'var(--color-bg-secondary)' }}>
         {/* 桌面端：侧边栏直接渲染 */}
-        {!isMobile && <Sidebar />}
+        {!isMobile && !collapsed && <Sidebar />}
 
         {/* 移动端：侧边栏通过 Sheet 抽屉展示 */}
         {isMobile && (

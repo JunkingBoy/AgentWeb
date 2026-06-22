@@ -12,7 +12,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 24px;
-  border-bottom: 1px solid var(--color-border-light);
   background: var(--color-header-bg);
   flex-shrink: 0;
 }
@@ -85,6 +84,42 @@
 }
 
 .hamburgerBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+/* ===== 侧边栏折叠时：左上方工具栏 ===== */
+.collapsedTools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.collapsedIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.3));
+}
+
+.collapsedToolBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.collapsedToolBtn:hover {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
@@ -501,7 +536,6 @@
 /* ===== 输入区域 ===== */
 .inputArea {
   padding: 12px 24px 16px;
-  border-top: 1px solid var(--color-border-light);
   background: var(--color-header-bg);
   flex-shrink: 0;
 }
@@ -746,30 +780,27 @@
   to { transform: rotate(360deg); }
 }
 
-/* ===== Ping/Pong 详情面板 ===== */
+/* ===== Ping/Pong 详情面板（平滑展开/收起） ===== */
 .pingPanel {
-  padding: 10px 24px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
   background: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border-light);
   display: flex;
   flex-wrap: wrap;
   gap: 4px 24px;
-  animation: slideDown 0.2s ease-out;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 24px;
+  padding-right: 24px;
+  transition: max-height 0.25s ease, opacity 0.2s ease, padding-top 0.25s ease, padding-bottom 0.25s ease;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 100px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
+.pingPanelVisible {
+  max-height: 100px;
+  opacity: 1;
+  padding-top: 8px;
+  padding-bottom: 10px;
 }
 
 .pingPanelItem {

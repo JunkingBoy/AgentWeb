@@ -16,7 +16,53 @@
   gap: 8px;
 }
 
-/* 搜索栏：默认仅显示图标，展开后弹出输入框 */
+/* Logo + 搜索同一行 */
+.headerTop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Logo 区域（神经网络样式） */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+  user-select: none;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.logoIcon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.3));
+}
+
+.logoText {
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: all 0.25s ease;
+}
+
+/* 搜索展开时 → Logo 文字渐隐，仅留图标 */
+.header.searchOpen .logoText {
+  width: 0;
+  opacity: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 搜索栏：默认仅显示图标，展开后弹性填充 */
 .searchBar {
   display: flex;
   align-items: center;
@@ -29,15 +75,19 @@
   transition: all 0.25s ease;
   cursor: pointer;
   overflow: hidden;
-  align-self: flex-end;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .searchBar:hover {
   border-color: var(--color-border-light);
 }
 
-.searchOpen {
-  width: 100%;
+/* 展开态：搜索条弹性占满剩余空间 */
+.header.searchOpen .searchBar {
+  width: auto;
+  flex: 1;
+  min-width: 0;
   border-color: var(--color-border-light);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
 }
@@ -62,6 +112,28 @@
   color: var(--color-text-primary);
 }
 
+/* 收起侧边栏按钮 */
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  margin-left: 2px;
+}
+
+.collapseBtn:hover {
+  background: var(--color-sidebar-item-hover);
+  color: var(--color-text-primary);
+}
+
 .searchInput {
   flex: 0;
   width: 0;
@@ -80,7 +152,7 @@
   color: var(--color-text-tertiary);
 }
 
-.searchOpen .searchInput {
+.header.searchOpen .searchInput {
   flex: 1;
   width: auto;
   opacity: 1;
@@ -221,7 +293,6 @@
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  border-top: 1px solid var(--color-sidebar-border);
   gap: 4px;
 }
 

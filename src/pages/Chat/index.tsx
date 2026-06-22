@@ -20,6 +20,9 @@ import {
   Square,
   Download,
   Menu,
+  Search,
+  Plus,
+  PanelLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
@@ -331,7 +334,7 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
-  const { isMobile: isMobileView, setIsOpen: setSidebarOpen } = useSidebarContext()
+  const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -680,6 +683,34 @@ export default function Chat() {
       {/* ===== 头部 ===== */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
+          {/* 侧边栏折叠时：左上工具栏 */}
+          {collapsed && !isMobileView && (
+            <div className={styles.collapsedTools}>
+              <svg viewBox="0 0 28 28" fill="none" className={styles.collapsedIcon}>
+                <defs>
+                  <linearGradient id="clg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+                </defs>
+                <circle cx="14" cy="6" r="2.8" fill="url(#clg)" />
+                <circle cx="6.5" cy="21" r="2.8" fill="url(#clg)" />
+                <circle cx="21.5" cy="21" r="2.8" fill="url(#clg)" />
+                <line x1="14" y1="8.5" x2="6.5" y2="18.5" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" />
+                <line x1="14" y1="8.5" x2="21.5" y2="18.5" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" />
+                <line x1="9.3" y1="21" x2="18.7" y2="21" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" opacity="0.5" />
+              </svg>
+              <button className={styles.collapsedToolBtn} onClick={() => setCollapsed(false)} title="展开侧边栏">
+                <PanelLeft size={16} />
+              </button>
+              <button className={styles.collapsedToolBtn} onClick={() => { setCollapsed(false); setTimeout(() => document.querySelector<HTMLInputElement>('[placeholder="搜索对话记录..."]')?.focus(), 300) }} title="搜索对话记录">
+                <Search size={14} />
+              </button>
+              <button className={styles.collapsedToolBtn} onClick={requestNewChat} title="新建对话">
+                <Plus size={16} />
+              </button>
+            </div>
+          )}
           {/* 移动端汉堡按钮 */}
           <button
             className={styles.hamburgerBtn}
@@ -752,8 +783,7 @@ export default function Chat() {
       </div>
 
       {/* ===== Ping/Pong 详情面板 ===== */}
-      {showPingInfo && (
-        <div className={styles.pingPanel}>
+      <div className={cn(styles.pingPanel, showPingInfo && styles.pingPanelVisible)}>
           <div className={styles.pingPanelItem}>
             <span className={styles.pingLabel}>连接状态</span>
             <span className={styles.pingValue} style={{ color: statusColor }}>
@@ -798,7 +828,6 @@ export default function Chat() {
             </div>
           )}
         </div>
-      )}
 
       {/* ===== 内容区域 ===== */}
       {isWelcome ? (
