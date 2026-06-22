@@ -554,8 +554,10 @@ export default function Chat() {
     if (!rid) return
     try {
       await stopStreamAPI(rid)
-    } catch {
-      console.warn('[Chat] 停止生成请求失败')
+    } catch (e) {
+      console.warn('[Chat] 停止生成请求失败', e)
+      const msg = e instanceof Error ? e.message : '停止生成失败'
+      if (msg) toast.error(msg)
     }
   }, [])
 
@@ -642,8 +644,10 @@ export default function Chat() {
       useChatStore.getState().deleteMessage(requestId)
       try {
         await deleteMessageAPI(requestId)
-      } catch {
-        console.warn('[Chat] 删除消息失败')
+      } catch (e) {
+        console.warn('[Chat] 删除消息失败', e)
+        const msg = e instanceof Error ? e.message : '删除失败'
+        if (msg) toast.error(msg)
       }
     },
     [],

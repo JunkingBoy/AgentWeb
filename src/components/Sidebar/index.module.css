@@ -10,13 +10,85 @@
 
 /* ===== 顶部 ===== */
 .header {
-  padding: 16px 12px 12px;
+  padding: 12px 12px 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-bottom: 1px solid var(--color-sidebar-border);
+  gap: 8px;
 }
 
+/* 搜索栏：默认仅显示图标，展开后弹出输入框 */
+.searchBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--color-input-bg);
+  border: 1px solid transparent;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  overflow: hidden;
+  align-self: flex-end;
+}
+
+.searchBar:hover {
+  border-color: var(--color-border-light);
+}
+
+.searchOpen {
+  width: 100%;
+  border-color: var(--color-border-light);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
+}
+
+.searchBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.searchBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.searchInput {
+  flex: 0;
+  width: 0;
+  opacity: 0;
+  visibility: hidden;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.searchOpen .searchInput {
+  flex: 1;
+  width: auto;
+  opacity: 1;
+  visibility: visible;
+  padding: 8px 4px 8px 16px;
+}
+
+/* 新建对话按钮（椭圆 pill） */
 .newBtn {
   display: flex;
   align-items: center;
@@ -24,7 +96,7 @@
   gap: 6px;
   width: 100%;
   padding: 9px 0;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px dashed var(--color-text-muted);
   background: transparent;
   color: var(--color-text-secondary);
@@ -38,40 +110,6 @@
   background: var(--color-sidebar-item-hover);
   border-color: var(--color-text-tertiary);
   color: var(--color-text-primary);
-}
-
-.searchWrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.searchIcon {
-  position: absolute;
-  left: 10px;
-  color: var(--color-text-tertiary);
-  pointer-events: none;
-}
-
-.searchInput {
-  width: 100%;
-  padding: 8px 10px 8px 32px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border-light);
-  background: var(--color-input-bg);
-  color: var(--color-text-primary);
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.searchInput::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.searchInput:focus {
-  border-color: var(--color-input-focus);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 }
 
 /* ===== 中间：对话列表 ===== */

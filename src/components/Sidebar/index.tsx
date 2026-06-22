@@ -1,5 +1,5 @@
-import { Search, MessageSquare, Plus, LogOut, User, KeyRound, Trash2, Download, MoreVertical } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Search, MessageSquare, Plus, LogOut, User, KeyRound, Trash2, Download, MoreVertical, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +39,8 @@ function displayTitle(title: string): string {
 
 export default function Sidebar() {
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showUsername, setShowUsername] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -58,6 +60,17 @@ export default function Sidebar() {
     if (!sessionsLoaded) loadSessions()
   }, [sessionsLoaded, loadSessions])
 
+  // 点击搜索框外部自动收起
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const filtered = sessions.filter(s =>
     s.title.toLowerCase().includes(search.toLowerCase()),
   )
@@ -68,14 +81,12 @@ export default function Sidebar() {
 
   return (
     <aside className={styles.sidebar}>
-      {/* 顶部：新建对话 + 搜索 */}
+      {/* 顶部：搜索 + 新建对话 */}
       <div className={styles.header}>
-        <button className={styles.newBtn} onClick={requestNewChat}>
-          <Plus size={16} />
-          <span>新建对话</span>
-        </button>
-        <div className={styles.searchWrapper}>
-          <Search size={14} className={styles.searchIcon} />
+        <div
+          ref={searchRef}
+          className={cn(styles.searchBar, searchOpen && styles.searchOpen)}
+        >
           <input
             type="text"
             className={styles.searchInput}
@@ -83,7 +94,18 @@ export default function Sidebar() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <button
+            className={styles.searchBtn}
+            onClick={() => setSearchOpen(!searchOpen)}
+            title="搜索对话记录"
+          >
+            {searchOpen ? <X size={14} /> : <Search size={14} />}
+          </button>
         </div>
+        <button className={styles.newBtn} onClick={requestNewChat}>
+          <Plus size={16} />
+          <span>新建对话</span>
+        </button>
       </div>
 
       {/* 中间：对话列表 */}

@@ -43,8 +43,8 @@ export default function ChangePasswordDialog({ open, onOpenChange }: Props) {
       } else {
         setError(res.msg || '修改失败')
       }
-    } catch {
-      setError('网络异常，请稍后重试')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '网络异常，请稍后重试')
     } finally {
       setLoading(false)
     }

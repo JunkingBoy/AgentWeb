@@ -109,8 +109,8 @@ export default function ForgotPassword() {
         setServerError(res.msg || '发送验证码失败')
         return
       }
-    } catch {
-      setServerError('网络异常，请稍后重试')
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
       return
     } finally {
       setSending(false)
@@ -141,8 +141,8 @@ export default function ForgotPassword() {
       } else {
         setServerError(res.msg || '重置密码失败')
       }
-    } catch {
-      setServerError('网络异常，请稍后重试')
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
     } finally {
       setSubmitting(false)
     }
@@ -165,8 +165,8 @@ export default function ForgotPassword() {
       } else {
         setServerError(res.msg || '发送验证码失败')
       }
-    } catch {
-      setServerError('网络异常，请稍后重试')
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
     } finally {
       setSending(false)
     }
