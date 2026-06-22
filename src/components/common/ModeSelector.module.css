@@ -87,6 +87,7 @@
   color: var(--color-primary);
 }
 
-.menuItem [data-slot="dropdown-menu-checkbox-item-indicator"] {
+.menuItem [data-slot="dropdown-menu-checkbox-item-indicator"],
+.menuItem [data-slot="dropdown-menu-radio-item-indicator"] {
   display: none;
 }

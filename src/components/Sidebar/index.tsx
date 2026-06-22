@@ -1,5 +1,5 @@
-import { Search, MessageSquare, Plus, LogOut, User, KeyRound, Trash2, Download, MoreVertical } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Search, MessageSquare, Plus, LogOut, User, KeyRound, Trash2, Download, MoreVertical, X, PanelLeftClose } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { useSidebarContext } from '@/contexts/SidebarContext'
 import { exportInstructionSets } from '@/api/instruction'
 import { toast } from 'sonner'
 import { useChatStore } from '@/stores/chatStore'
@@ -39,10 +40,13 @@ function displayTitle(title: string): string {
 
 export default function Sidebar() {
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showUsername, setShowUsername] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  const { setCollapsed } = useSidebarContext()
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
   const sessions = useChatStore(s => s.sessions)
@@ -58,6 +62,17 @@ export default function Sidebar() {
     if (!sessionsLoaded) loadSessions()
   }, [sessionsLoaded, loadSessions])
 
+  // 点击搜索框外部自动收起
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const filtered = sessions.filter(s =>
     s.title.toLowerCase().includes(search.toLowerCase()),
   )
@@ -68,14 +83,30 @@ export default function Sidebar() {
 
   return (
     <aside className={styles.sidebar}>
-      {/* 顶部：新建对话 + 搜索 */}
-      <div className={styles.header}>
-        <button className={styles.newBtn} onClick={requestNewChat}>
-          <Plus size={16} />
-          <span>新建对话</span>
-        </button>
-        <div className={styles.searchWrapper}>
-          <Search size={14} className={styles.searchIcon} />
+      {/* 顶部：Logo + 搜索 + 新建对话 */}
+      <div className={cn(styles.header, searchOpen && styles.searchOpen)}>
+        <div className={styles.headerTop}>
+          <div className={styles.logo}>
+            <svg viewBox="0 0 28 28" fill="none" className={styles.logoIcon}>
+              <defs>
+                <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#818cf8" />
+                  <stop offset="100%" stopColor="#6366f1" />
+                </linearGradient>
+              </defs>
+              <circle cx="14" cy="6" r="2.8" fill="url(#lg)" />
+              <circle cx="6.5" cy="21" r="2.8" fill="url(#lg)" />
+              <circle cx="21.5" cy="21" r="2.8" fill="url(#lg)" />
+              <line x1="14" y1="8.5" x2="6.5" y2="18.5" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="14" y1="8.5" x2="21.5" y2="18.5" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="9.3" y1="21" x2="18.7" y2="21" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" opacity="0.5" />
+            </svg>
+            <span className={styles.logoText}>AI Test Assistant</span>
+          </div>
+          <div
+            ref={searchRef}
+            className={styles.searchBar}
+        >
           <input
             type="text"
             className={styles.searchInput}
@@ -83,7 +114,26 @@ export default function Sidebar() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <button
+            className={styles.searchBtn}
+            onClick={() => setSearchOpen(!searchOpen)}
+            title="搜索对话记录"
+          >
+            {searchOpen ? <X size={14} /> : <Search size={14} />}
+          </button>
         </div>
+          <button
+            className={styles.collapseBtn}
+            onClick={() => setCollapsed(true)}
+            title="收起侧边栏"
+          >
+            <PanelLeftClose size={16} />
+          </button>
+        </div>
+        <button className={styles.newBtn} onClick={requestNewChat}>
+          <Plus size={16} />
+          <span>新建对话</span>
+        </button>
       </div>
 
       {/* 中间：对话列表 */}

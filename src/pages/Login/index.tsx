@@ -98,8 +98,8 @@ export default function Login() {
         } else {
           setServerError(res.msg || '登录失败')
         }
-      } catch {
-        setServerError('网络异常，请稍后重试')
+      } catch (e) {
+        setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
       }
       return
     }
@@ -129,8 +129,8 @@ export default function Login() {
       } else {
         setServerError(res.msg || '注册失败')
       }
-    } catch {
-      setServerError('网络异常，请稍后重试')
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
     }
   }
 
