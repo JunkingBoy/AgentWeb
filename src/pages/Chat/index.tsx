@@ -334,7 +334,7 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
-  const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed, triggerSearch } = useSidebarContext()
+  const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
