@@ -334,7 +334,7 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
-  const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
+  const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed, triggerSearch } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
@@ -343,6 +343,8 @@ export default function Chat() {
   const [wsReady, setWsReady] = useState(false)
   const [activeQIdx, setActiveQIdx] = useState(-1)
   const [hoveredQIdx, setHoveredQIdx] = useState<number | null>(null)
+  const [collapsedSearch, setCollapsedSearch] = useState(false)
+  const collapsedSearchRef = useRef<HTMLInputElement>(null)
 
   // 提取所有用户提问用于导航标记
   const questions = useMemo(() => {
@@ -736,9 +738,24 @@ export default function Chat() {
               <button className={styles.collapsedToolBtn} onClick={() => setCollapsed(false)} title="展开侧边栏">
                 <PanelLeft size={16} />
               </button>
-              <button className={styles.collapsedToolBtn} onClick={() => { setCollapsed(false); setTimeout(() => document.querySelector<HTMLInputElement>('[placeholder="搜索对话记录..."]')?.focus(), 300) }} title="搜索对话记录">
-                <Search size={14} />
-              </button>
+              {collapsedSearch ? (
+                <div className={styles.collapsedSearchWrap}>
+                  <input
+                    ref={collapsedSearchRef}
+                    className={styles.collapsedSearchInput}
+                    placeholder="搜索对话记录..."
+                    autoFocus
+                    onBlur={() => setCollapsedSearch(false)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') setCollapsedSearch(false)
+                    }}
+                  />
+                </div>
+              ) : (
+                <button className={styles.collapsedToolBtn} onClick={() => { setCollapsedSearch(true); setTimeout(() => collapsedSearchRef.current?.focus(), 50) }} title="搜索对话记录">
+                  <Search size={14} />
+                </button>
+              )}
               <button className={styles.collapsedToolBtn} onClick={requestNewChat} title="新建对话">
                 <Plus size={16} />
               </button>

@@ -46,7 +46,7 @@ export default function Sidebar() {
   const [showUsername, setShowUsername] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const { setCollapsed } = useSidebarContext()
+  const { setCollapsed, searchTrigger } = useSidebarContext()
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
   const sessions = useChatStore(s => s.sessions)
@@ -72,6 +72,14 @@ export default function Sidebar() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // 外部触发搜索（折叠态点击搜索按钮 → 展开侧边栏后自动打开搜索）
+  useEffect(() => {
+    if (searchTrigger > 0) {
+      setSearchOpen(true)
+      setTimeout(() => searchRef.current?.querySelector('input')?.focus(), 350)
+    }
+  }, [searchTrigger])
 
   const filtered = sessions.filter(s =>
     s.title.toLowerCase().includes(search.toLowerCase()),

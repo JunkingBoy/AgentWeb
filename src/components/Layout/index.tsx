@@ -18,6 +18,8 @@ export default function Layout() {
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [searchTrigger, setSearchTrigger] = useState(0)
+  const triggerSearch = () => { setCollapsed(false); setSearchTrigger(s => s + 1) }
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -39,7 +41,7 @@ export default function Layout() {
   }, [])
 
   return (
-    <SidebarContext.Provider value={{ isOpen: sidebarOpen, setIsOpen: setSidebarOpen, isMobile, collapsed, setCollapsed }}>
+    <SidebarContext.Provider value={{ isOpen: sidebarOpen, setIsOpen: setSidebarOpen, isMobile, collapsed, setCollapsed, searchTrigger, triggerSearch }}>
       <div className="flex h-screen" style={{ background: 'var(--color-bg-secondary)' }}>
         {/* 桌面端：侧边栏（折叠时宽度过渡动画） */}
         {!isMobile && (
