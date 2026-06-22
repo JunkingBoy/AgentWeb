@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Outlet } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 import Sidebar from '@/components/Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { fetchUserInfo } from '@/api/user'
@@ -40,8 +41,12 @@ export default function Layout() {
   return (
     <SidebarContext.Provider value={{ isOpen: sidebarOpen, setIsOpen: setSidebarOpen, isMobile, collapsed, setCollapsed }}>
       <div className="flex h-screen" style={{ background: 'var(--color-bg-secondary)' }}>
-        {/* 桌面端：侧边栏直接渲染 */}
-        {!isMobile && !collapsed && <Sidebar />}
+        {/* 桌面端：侧边栏（折叠时宽度过渡动画） */}
+        {!isMobile && (
+          <div className={cn('sidebar-collapse-wrap', collapsed && 'sidebar-collapsed')}>
+            <Sidebar />
+          </div>
+        )}
 
         {/* 移动端：侧边栏通过 Sheet 抽屉展示 */}
         {isMobile && (
