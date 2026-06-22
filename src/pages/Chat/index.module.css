@@ -124,6 +124,33 @@
   color: var(--color-text-primary);
 }
 
+/* 折叠态搜索输入框 */
+.collapsedSearchWrap {
+  display: flex;
+  align-items: center;
+}
+
+.collapsedSearchInput {
+  width: 180px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.collapsedSearchInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.collapsedSearchInput:focus {
+  border-color: var(--color-input-focus);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
 /* ===== 移动端响应式 ===== */
 @media (max-width: 767px) {
   .header {

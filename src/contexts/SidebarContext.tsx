@@ -6,6 +6,9 @@ interface SidebarContextValue {
   isMobile: boolean
   collapsed: boolean
   setCollapsed: (collapsed: boolean) => void
+  /** 自增计数器，变化时触发侧边栏打开搜索 */
+  searchTrigger: number
+  triggerSearch: () => void
 }
 
 const SidebarContext = createContext<SidebarContextValue>({
@@ -14,6 +17,8 @@ const SidebarContext = createContext<SidebarContextValue>({
   isMobile: false,
   collapsed: false,
   setCollapsed: () => {},
+  searchTrigger: 0,
+  triggerSearch: () => {},
 })
 
 export const useSidebarContext = () => useContext(SidebarContext)

@@ -21,6 +21,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  position: relative;
 }
 
 /* Logo 区域（神经网络样式） */
@@ -62,7 +63,7 @@
   overflow: hidden;
 }
 
-/* 搜索栏：默认仅显示图标，展开后弹性填充 */
+/* 搜索栏：默认图标，展开时 absolute 覆盖整行 */
 .searchBar {
   display: flex;
   align-items: center;
@@ -83,14 +84,16 @@
   border-color: var(--color-border-light);
 }
 
-/* 展开态：搜索条弹性占满剩余空间 */
+/* 展开态：搜索条 absolute 覆盖整行 */
 .header.searchOpen .searchBar {
+  position: absolute;
+  left: 2px;
+  right: 2px;
   width: auto;
-  flex: 1;
-  min-width: 0;
   margin-left: 0;
   border-color: var(--color-border-light);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
+  z-index: 5;
 }
 
 .searchBtn {
@@ -135,18 +138,21 @@
   color: var(--color-text-primary);
 }
 
+.header.searchOpen .collapseBtn {
+  display: none;
+}
+
 .searchInput {
   flex: 0;
   width: 0;
   opacity: 0;
-  visibility: hidden;
   border: none;
   outline: none;
   background: transparent;
   color: var(--color-text-primary);
   font-size: 13px;
   padding: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.2s ease;
 }
 
 .searchInput::placeholder {
@@ -157,7 +163,6 @@
   flex: 1;
   width: auto;
   opacity: 1;
-  visibility: visible;
   padding: 8px 4px 8px 16px;
 }
 
