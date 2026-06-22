@@ -23,3 +23,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ===== 侧边栏折叠/展开平滑过渡 ===== */
+.sidebar-collapse-wrap {
+  width: 280px;
+  min-width: 280px;
+  overflow: hidden;
+  transition: width 0.3s ease, min-width 0.3s ease;
+}
+
+.sidebar-collapsed {
+  width: 0;
+  min-width: 0;
+}
+
