@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -222,7 +222,7 @@ const MessageList = memo(function MessageList({
     }
 
     const bubble = (
-      <div key={msg.id} className={styles.messageGroup}>
+      <div key={msg.id} className={styles.messageGroup} {...(msg.role === 'user' ? { 'data-qmark': msg.id } : {})}>
         <div
           className={`${styles.messageRow} ${
             msg.role === 'user'
@@ -337,9 +337,42 @@ export default function Chat() {
   const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [wsReady, setWsReady] = useState(false)
+  const [activeQIdx, setActiveQIdx] = useState(-1)
+  const [hoveredQIdx, setHoveredQIdx] = useState<number | null>(null)
+
+  // 提取所有用户提问用于导航标记
+  const questions = useMemo(() => {
+    return messages.filter(m => m.role === 'user').map(m => ({ msgId: m.id, text: m.content }))
+  }, [messages])
+
+  // 滚动时更新活跃提问索引（以可视区顶部为基准）
+  const handleMsgScroll = useCallback(() => {
+    const el = messagesRef.current
+    if (!el || !questions.length) { setActiveQIdx(-1); return }
+    const markers = el.querySelectorAll('[data-qmark]')
+    const scrollTop = el.scrollTop
+    let closest = 0, minDist = Infinity
+    questions.forEach((_, i) => {
+      const child = markers[i] as HTMLElement | undefined
+      if (child) {
+        const dist = Math.abs(child.offsetTop - scrollTop)
+        if (dist < minDist) { minDist = dist; closest = i }
+      }
+    })
+    setActiveQIdx(closest)
+  }, [questions])
+
+  useEffect(() => {
+    const el = messagesRef.current
+    if (!el) return
+    el.addEventListener('scroll', handleMsgScroll, { passive: true })
+    handleMsgScroll()
+    return () => el.removeEventListener('scroll', handleMsgScroll)
+  }, [handleMsgScroll])
 
   // 非流式模式（如 test 模式，后端 suppress_stream=True，无 chat.thinking 推送）
   const instructionSetsBySession = useChatStore(s => s.instructionSetsBySession)
@@ -862,93 +895,117 @@ export default function Chat() {
           </div>
         </div>
       ) : (
-        <div className={styles.messages}>
-          <MessageList
-            messages={messages}
-            copiedId={copiedId}
-            onCopy={handleCopy}
-            onDeleteMessage={handleDeleteMessage}
-          />
+        <div className={styles.messagesWrap}>
+          <div className={styles.messages} ref={messagesRef}>
+            <MessageList
+              messages={messages}
+              copiedId={copiedId}
+              onCopy={handleCopy}
+              onDeleteMessage={handleDeleteMessage}
+            />
 
-          {/* 思考过程区域（独立渲染，仅流式 chunk 时更新，不影响已渲染消息） */}
-          {(thinkingContent || isThinking) && (
-            <div className={styles.thinkingSection}>
-              <button
-                className={styles.thinkingToggle}
-                onClick={() => setShowThinking(v => !v)}
-              >
-                <span className={styles.thinkingToggleIcon}>
-                  {isThinking && !showThinking ? '💭' : '🧠'}
-                </span>
-                <span>
-                  {isThinking
-                    ? showThinking
-                      ? '隐藏处理过程'
-                      : loadingLabel
-                    : showThinking
-                      ? '隐藏处理过程'
-                      : '查看处理过程'}
-                </span>
-                <span className={styles.thinkingToggleArrow}>
-                  {showThinking ? '▲' : '▼'}
-                </span>
-              </button>
+            {/* 思考过程区域（独立渲染，仅流式 chunk 时更新，不影响已渲染消息） */}
+            {(thinkingContent || isThinking) && (
+              <div className={styles.thinkingSection}>
+                <button
+                  className={styles.thinkingToggle}
+                  onClick={() => setShowThinking(v => !v)}
+                >
+                  <span className={styles.thinkingToggleIcon}>
+                    {isThinking && !showThinking ? '💭' : '🧠'}
+                  </span>
+                  <span>
+                    {isThinking
+                      ? showThinking
+                        ? '隐藏处理过程'
+                        : loadingLabel
+                      : showThinking
+                        ? '隐藏处理过程'
+                        : '查看处理过程'}
+                  </span>
+                  <span className={styles.thinkingToggleArrow}>
+                    {showThinking ? '▲' : '▼'}
+                  </span>
+                </button>
 
-              {showThinking && (
-                <div className={styles.thinkingPanel}>
-                  <div className={styles.thinkingContent}>
-                    {thinkingContent ? (
-                      <Markdown
-                        remarkPlugins={[remarkGfm]}
-                        components={markdownComponents}
-                      >
-                        {thinkingContent}
-                      </Markdown>
-                    ) : isNonStreamingMode ? (
-                      <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                        正在收集结果，请稍候...
-                      </p>
-                    ) : null}
-                  </div>
-                  {isThinking && (
-                    <div className={styles.thinkingStreaming}>
-                      <span className={styles.thinkingDot} />
-                      <span className={styles.thinkingDot} />
-                      <span className={styles.thinkingDot} />
+                {showThinking && (
+                  <div className={styles.thinkingPanel}>
+                    <div className={styles.thinkingContent}>
+                      {thinkingContent ? (
+                        <Markdown
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {thinkingContent}
+                        </Markdown>
+                      ) : isNonStreamingMode ? (
+                        <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                          正在收集结果，请稍候...
+                        </p>
+                      ) : null}
                     </div>
-                  )}
+                    {isThinking && (
+                      <div className={styles.thinkingStreaming}>
+                        <span className={styles.thinkingDot} />
+                        <span className={styles.thinkingDot} />
+                        <span className={styles.thinkingDot} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Token 用量标签 */}
+            {contextUsage && !isThinking && messages.length > 0 && (() => {
+              const lastMsg = messages[messages.length - 1]
+              if (lastMsg.role !== 'agent') return null
+              return (
+                <div key="token-usage" className={styles.tokenUsage}>
+                  上下文长度 <strong>{contextUsage.used.toLocaleString()}</strong> / {contextUsage.max.toLocaleString()} tokens
+                  {contextUsage.truncated && <span style={{ color: '#f59e0b' }}>（已截断）</span>}
+                  {contextUsage.suggest_new && <span style={{ color: '#ef4444' }}>· 建议新建对话</span>}
                 </div>
-              )}
-            </div>
-          )}
+              )
+            })()}
 
-          {/* Token 用量标签 */}
-          {contextUsage && !isThinking && messages.length > 0 && (() => {
-            const lastMsg = messages[messages.length - 1]
-            if (lastMsg.role !== 'agent') return null
-            return (
-              <div key="token-usage" className={styles.tokenUsage}>
-                上下文长度 <strong>{contextUsage.used.toLocaleString()}</strong> / {contextUsage.max.toLocaleString()} tokens
-                {contextUsage.truncated && <span style={{ color: '#f59e0b' }}>（已截断）</span>}
-                {contextUsage.suggest_new && <span style={{ color: '#ef4444' }}>· 建议新建对话</span>}
+            {isTyping && (
+              <div className={styles.typingIndicator}>
+                <div className={styles.typingAvatar}>
+                  <Bot size={15} color="white" />
+                </div>
+                <div className={styles.typingBubble}>
+                  <span className={styles.typingDot} />
+                  <span className={styles.typingDot} />
+                  <span className={styles.typingDot} />
+                </div>
               </div>
-            )
-          })()}
+            )}
 
-          {isTyping && (
-            <div className={styles.typingIndicator}>
-              <div className={styles.typingAvatar}>
-                <Bot size={15} color="white" />
-              </div>
-              <div className={styles.typingBubble}>
-                <span className={styles.typingDot} />
-                <span className={styles.typingDot} />
-                <span className={styles.typingDot} />
-              </div>
-            </div>
-          )}
+            <div ref={messagesEndRef} />
+          </div>
 
-          <div ref={messagesEndRef} />
+          {/* 对话定位导航区（浮在消息区域右侧） */}
+          <div className={styles.msgNav} onMouseLeave={() => setHoveredQIdx(null)}>
+            {questions.map((q, i) => (
+              <div
+                key={q.msgId}
+                className={`${styles.msgNavDotWrap} ${i === activeQIdx ? styles.msgNavDotActive : ''} ${hoveredQIdx === i ? styles.msgNavDotHovered : ''}`}
+                onMouseEnter={() => setHoveredQIdx(i)}
+                onClick={() => {
+                  const target = messagesRef.current?.querySelector(`[data-qmark="${q.msgId}"]`)
+                  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              >
+                <div className={styles.msgNavDot} />
+                {hoveredQIdx === i && (
+                  <div className={styles.msgNavPreview} title={q.text}>
+                    <span className={styles.msgNavPreviewText}>{q.text}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
