@@ -272,12 +272,27 @@
 
 .editActions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 6px;
+  margin-top: 4px;
+}
+
+.editActionsRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editHint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  user-select: none;
+  white-space: nowrap;
 }
 
 .cancelBtn,
-.saveBtn {
+.confirmBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -300,17 +315,19 @@
   background: var(--color-border-light);
 }
 
-.saveBtn {
-  background: var(--color-primary);
-  color: #fff;
+.confirmBtn {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-light);
 }
 
-.saveBtn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+.confirmBtn:hover:not(:disabled) {
+  background: var(--color-border-light);
+  color: var(--color-text-primary);
 }
 
-.saveBtn:disabled,
-.cancelBtn:disabled {
+.cancelBtn:disabled,
+.confirmBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

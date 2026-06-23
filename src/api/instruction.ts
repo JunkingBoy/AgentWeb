@@ -24,14 +24,13 @@ export async function fetchInstructionSets(
   return res.data
 }
 
-/** 软删除单条指令集 */
+/** 软删除单条指令集 — instruction_id 已为加密值，直接透传 */
 export async function deleteInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptParam(instructionId)
   const res = await client.delete<ApiResponse<null>>(
     '/instruction/single',
-    { params: { instruction_id: encryptedId } },
+    { params: { instruction_id: instructionId } },
   )
   return res.data
 }
@@ -59,15 +58,14 @@ export async function batchSaveInstructionSets(
   return res.data
 }
 
-/** 恢复已删除的指令集 */
+/** 恢复已删除的指令集 — instruction_id 已为加密值，直接透传 */
 export async function restoreInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptParam(instructionId)
   const res = await client.patch<ApiResponse<null>>(
     '/instruction/restore',
     {},
-    { params: { instruction_id: encryptedId } },
+    { params: { instruction_id: instructionId } },
   )
   return res.data
 }
