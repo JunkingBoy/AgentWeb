@@ -1,5 +1,6 @@
 import { memo, useMemo, useState, useEffect, useCallback } from 'react'
 import { Trash2, RotateCcw, Pencil, X, Check, Save } from 'lucide-react'
+import { toast } from 'sonner'
 import { deleteInstructionSet, restoreInstructionSet, batchSaveInstructionSets } from '@/api/instruction'
 import type { TestCaseData, InstructionSetItem } from '@/types/api'
 import styles from './TestCaseCard.module.css'
@@ -110,8 +111,14 @@ const TestCaseItem = memo(function TestCaseItem({ item, index, onDeleted, onRest
     setOperating(true)
     try {
       const res = await deleteInstructionSet(item.instruction_id)
-      if (res.code === 1001) onDeleted?.(item.instruction_id)
-    } catch { /* ignore */ }
+      if (res.code === 1001) {
+        onDeleted?.(item.instruction_id)
+      } else {
+        toast.error(res.msg || '删除失败')
+      }
+    } catch {
+      toast.error('网络异常，删除失败')
+    }
     setOperating(false)
   }
 
@@ -119,8 +126,14 @@ const TestCaseItem = memo(function TestCaseItem({ item, index, onDeleted, onRest
     setOperating(true)
     try {
       const res = await restoreInstructionSet(item.instruction_id)
-      if (res.code === 1001) onRestored?.(item.instruction_id)
-    } catch { /* ignore */ }
+      if (res.code === 1001) {
+        onRestored?.(item.instruction_id)
+      } else {
+        toast.error(res.msg || '恢复失败')
+      }
+    } catch {
+      toast.error('网络异常，恢复失败')
+    }
     setOperating(false)
   }
 
@@ -189,9 +202,12 @@ const TestCaseItem = memo(function TestCaseItem({ item, index, onDeleted, onRest
             <button className={styles.cancelBtn} onClick={handleCancelEdit}>
               <X size={14} /> 取消
             </button>
-            <button className={styles.saveBtn} onClick={handleSaveEdit}>
-              <Check size={14} /> 应用
-            </button>
+            <div className={styles.editActionsRight}>
+              <span className={styles.editHint}>确认后别忘了点「保存全部」提交</span>
+              <button className={styles.confirmBtn} onClick={handleSaveEdit}>
+                <Check size={14} /> 确认
+              </button>
+            </div>
           </div>
         </div>
       ) : (
