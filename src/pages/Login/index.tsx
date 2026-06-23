@@ -169,7 +169,7 @@ export default function Login() {
         </div>
 
         {/* 表单 */}
-        <form className={styles.form} onSubmit={(e) => { console.log('[Login] form onSubmit event', { isSubmitting, agreed }); handleSubmit(onSubmit)(e) }}>
+        <form className={styles.form} noValidate onSubmit={(e) => { console.log('[Login] form onSubmit event', { isSubmitting, agreed }); handleSubmit(onSubmit)(e) }}>
           <div className={styles.formWrapper}>
           {/* 手机号（登录 + 注册共有） */}
           <div className={styles.field}>
@@ -195,6 +195,7 @@ export default function Login() {
                 type="email"
                 placeholder="请输入邮箱地址"
                 className={cn(fieldError.email && 'border-red-500')}
+                tabIndex={isLogin ? -1 : undefined}
                 {...register('email')}
               />
               {fieldError.email && (
@@ -250,6 +251,7 @@ export default function Login() {
                   type={showConfirmPwd ? 'text' : 'password'}
                   placeholder="请再次输入密码"
                   className={cn(fieldError.password_confirm && 'border-red-500')}
+                  tabIndex={isLogin ? -1 : undefined}
                   {...register('password_confirm')}
                 />
                 <button
