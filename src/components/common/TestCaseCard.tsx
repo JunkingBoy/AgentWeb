@@ -45,36 +45,18 @@ function formatCase(c: TestCaseData): string {
     .join(' | ')
 }
 
-/** 多行编辑格式：每行「用例名称: xxx」 */
-function formatForEdit(c: TestCaseData): string {
-  return FIELD_LABELS
-    .map(([key, label]) => {
-      const val = c[key]
-      return val ? `${label}: ${String(val).replace(/\n/g, ' ')}` : null
-    })
-    .filter(Boolean)
-    .join('\n')
+/** 从 TestCaseData 提取出纯值的 Record（供编辑表单初始化） */
+function extractValues(c: TestCaseData): Record<string, string> {
+  const values: Record<string, string> = {}
+  for (const [key] of FIELD_LABELS) {
+    const val = c[key]
+    values[key] = val ? String(val) : ''
+  }
+  return values
 }
 
-/** 从格式化文本反解析回 TestCaseData */
-function parseFormattedText(text: string): TestCaseData | null {
-  try {
-    const obj: Record<string, string> = {}
-    const lines = text.split(/\n| \| /)
-    for (const line of lines) {
-      // 支持 ASCII : 和全角 ：两种冒号
-      const idx = line.indexOf('：')
-      const idxAscii = idx === -1 ? line.indexOf(':') : idx
-      if (idxAscii === -1) continue
-      const label = line.slice(0, idxAscii).trim()
-      const value = line.slice(idxAscii + 1).trim()
-      for (const [key, lbl] of FIELD_LABELS) {
-        if (lbl === label) { obj[key] = value; break }
-      }
-    }
-    return obj.title ? (obj as TestCaseData) : null
-  } catch { return null }
-}
+/** 多行文本字段 */
+const MULTILINE_FIELDS = new Set(['desc', 'expect', 'describe', 'precondition'])
 
 /* ===== 单条指令集 ===== */
 
@@ -90,39 +72,39 @@ interface ItemProps {
 const TestCaseItem = memo(function TestCaseItem({ item, index, onDeleted, onRestored, onEdited }: ItemProps) {
   const [operating, setOperating] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [editText, setEditText] = useState('')
-  const [editError, setEditError] = useState('')
+  const [editValues, setEditValues] = useState<Record<string, string>>({})
 
   const tc = useMemo(() => parseCases(item.cases), [item.cases])
   const priStyle = getPriStyle(tc?.pri)
 
   if (!tc) return null
 
-  // 进入编辑模式
+  // 进入编辑模式 — 用固定标签初始化表单
   const handleStartEdit = () => {
-    setEditText(formatForEdit(tc))
-    setEditError('')
+    setEditValues(extractValues(tc))
     setEditing(true)
   }
 
   // 取消编辑
   const handleCancelEdit = () => {
     setEditing(false)
-    setEditError('')
   }
 
   // 保存编辑（仅本地更新，不调 API）
   const handleSaveEdit = () => {
-    const raw = editText.trim()
-    const parsed = parseFormattedText(raw) || parseCases(raw)
-    if (!parsed) {
-      setEditError('无法解析，请保持每行「字段名: 值」的格式')
-      return
+    const obj: Record<string, string> = {}
+    for (const [key] of FIELD_LABELS) {
+      const val = editValues[key]
+      if (val && val.trim()) obj[key] = val.trim()
     }
-    onEdited?.(item.instruction_id, JSON.stringify(parsed))
+    onEdited?.(item.instruction_id, JSON.stringify(obj as TestCaseData))
     setEditing(false)
-    setEditError('')
   }
+
+  // 更新单个字段值
+  const updateField = useCallback((key: string, value: string) => {
+    setEditValues(prev => ({ ...prev, [key]: value }))
+  }, [])
 
   const handleDelete = async () => {
     setOperating(true)
@@ -177,14 +159,32 @@ const TestCaseItem = memo(function TestCaseItem({ item, index, onDeleted, onRest
 
       {editing ? (
         <div className={styles.editArea}>
-          <textarea
-            className={styles.editInput}
-            value={editText}
-            onChange={e => { setEditText(e.target.value); setEditError('') }}
-            rows={6}
-            autoFocus
-          />
-          {editError && <div className={styles.editError}>{editError}</div>}
+          {FIELD_LABELS.map(([key, label]) => {
+            const val = editValues[key] ?? ''
+            if (MULTILINE_FIELDS.has(key)) {
+              return (
+                <div className={styles.editField} key={key}>
+                  <span className={styles.editFieldLabel}>{label}</span>
+                  <textarea
+                    className={styles.editInput}
+                    value={val}
+                    onChange={e => updateField(key, e.target.value)}
+                    rows={key === 'desc' || key === 'expect' ? 4 : 2}
+                  />
+                </div>
+              )
+            }
+            return (
+              <div className={styles.editField} key={key}>
+                <span className={styles.editFieldLabel}>{label}</span>
+                <input
+                  className={styles.editInput}
+                  value={val}
+                  onChange={e => updateField(key, e.target.value)}
+                />
+              </div>
+            )
+          })}
           <div className={styles.editActions}>
             <button className={styles.cancelBtn} onClick={handleCancelEdit}>
               <X size={14} /> 取消

@@ -226,33 +226,48 @@
   padding: 8px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+}
+
+/* 单行字段布局 */
+.editField {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.editFieldLabel {
+  flex-shrink: 0;
+  min-width: 72px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 2;
+  color: var(--color-text-secondary);
+  text-align: right;
+  user-select: none;
 }
 
 .editInput {
-  width: 100%;
-  min-height: 120px;
-  padding: 8px 10px;
-  border: 1px solid var(--color-text-muted);
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-light);
   border-radius: 6px;
   font-size: 13px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  line-height: 1.6;
+  line-height: 1.5;
   color: var(--color-text-primary);
   background: var(--color-input-bg);
-  resize: vertical;
   outline: none;
   transition: border-color 0.12s;
+  font-family: inherit;
 }
 
 .editInput:focus {
   border-color: var(--color-input-focus);
 }
 
-.editError {
-  font-size: 12px;
-  color: var(--color-error);
-  line-height: 1.4;
+.editArea textarea.editInput {
+  resize: vertical;
+  min-height: 48px;
 }
 
 .editActions {
