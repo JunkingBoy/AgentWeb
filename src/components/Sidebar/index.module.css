@@ -41,6 +41,12 @@
   height: 26px;
   flex-shrink: 0;
   filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.3));
+  animation: logoSpin 8s linear infinite;
+}
+
+@keyframes logoSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .logoText {

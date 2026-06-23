@@ -102,6 +102,12 @@
   height: 20px;
   flex-shrink: 0;
   filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.3));
+  animation: neuralSpin 8s linear infinite;
+}
+
+@keyframes neuralSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .collapsedToolBtn {
