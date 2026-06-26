@@ -24,14 +24,13 @@ export async function fetchInstructionSets(
   return res.data
 }
 
-/** 软删除单条指令集 */
+/** 软删除单条指令集 — instruction_id 后端返回已是加密值，直接透传 */
 export async function deleteInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptParam(instructionId)
   const res = await client.delete<ApiResponse<null>>(
     '/instruction/single',
-    { params: { instruction_id: encryptedId } },
+    { params: { instruction_id: instructionId } },
   )
   return res.data
 }
@@ -46,12 +45,12 @@ export interface BatchSaveResult {
 export async function batchSaveInstructionSets(
   sets: InstructionSetItem[],
 ): Promise<ApiResponse<BatchSaveResult>> {
-  // session_id / instruction_id 后端返回的是明文，需加密后提交
-  const body = await Promise.all(sets.map(async s => ({
-    session_id: await encryptParam(s.session_id),
-    instruction_id: await encryptParam(s.instruction_id),
+  // session_id / instruction_id 后端返回已是加密值，前端直接透传
+  const body = sets.map(s => ({
+    session_id: s.session_id,
+    instruction_id: s.instruction_id,
     cases: s.cases,
-  })))
+  }))
   const res = await client.put<ApiResponse<BatchSaveResult>>(
     '/instruction/batch',
     body,
@@ -59,15 +58,14 @@ export async function batchSaveInstructionSets(
   return res.data
 }
 
-/** 恢复已删除的指令集 */
+/** 恢复已删除的指令集 — instruction_id 后端返回已是加密值，直接透传 */
 export async function restoreInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptParam(instructionId)
   const res = await client.patch<ApiResponse<null>>(
     '/instruction/restore',
     {},
-    { params: { instruction_id: encryptedId } },
+    { params: { instruction_id: instructionId } },
   )
   return res.data
 }
