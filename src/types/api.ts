@@ -42,8 +42,8 @@ export interface TestCaseData {
 
 /** 指令集条目（后端 InstructionSetResponseSchema） */
 export interface InstructionSetItem {
-  session_id: string      // 明文，提交时由前端加密
-  instruction_id: string  // 明文，提交时由前端加密
+  session_id: string      // 加密
+  instruction_id: string  // 加密，用于前端删除/恢复
   cases: string           // 单条用例 JSON 字符串
   status: string          // active | deleted | draft | published
   c_time?: string
