@@ -1,6 +1,6 @@
 import client from './client'
 import type { ApiResponse, PromptMode } from '@/types/api'
-import { encrypt } from '@/utils/crypto'
+import { encrypt, decrypt } from '@/utils/crypto'
 import { getAesKey } from '@/utils/keyManager'
 
 /** 服务端返回的单条消息结构 */
@@ -29,22 +29,27 @@ export async function fetchSessions(): Promise<ApiResponse<string[]>> {
   return res.data
 }
 
-/** 获取指定会话的消息列表（按时间正序）—— session_id 自动加密后发送 */
+/** 获取指定会话的消息列表（按时间正序） */
 export async function fetchSessionMessages(
   sessionId: string,
 ): Promise<ApiResponse<ChatMessage[]>> {
-  const encryptedId = await encryptSessionId(sessionId)
+  // /chat/sessions 返回的 session_id 已是加密值，先解密得到明文，再重新加密后发送
+  const key = await getAesKey()
+  const plaintext = await decrypt(sessionId, key)
+  const encryptedId = await encrypt(plaintext, key)
   const res = await client.get<ApiResponse<ChatMessage[]>>('/chat/messages', {
     params: { session_id: encryptedId },
   })
   return res.data
 }
 
-/** 删除指定会话（软删除）—— session_id 自动加密后发送 */
+/** 删除指定会话（软删除）—— session_id 先解密再加密后发送 */
 export async function deleteSessionAPI(
   sessionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptSessionId(sessionId)
+  const key = await getAesKey()
+  const plaintext = await decrypt(sessionId, key)
+  const encryptedId = await encrypt(plaintext, key)
   const res = await client.delete<ApiResponse<null>>('/chat/session', {
     params: { session_id: encryptedId },
   })
