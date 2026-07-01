@@ -1,22 +1,22 @@
 import client from './client'
 import type { ApiResponse, InstructionSetItem } from '@/types/api'
-import { encrypt } from '@/utils/crypto'
+import { encrypt, decrypt } from '@/utils/crypto'
 import { getAesKey } from '@/utils/keyManager'
 
 /**
- * AES 加密参数（复用 WebSocket 加密体系）
- * 参数加密后作为 query 参数发送
+ * 先解密再重新加密（/chat/sessions 返回的 session_id 已是加密值）
  */
-async function encryptParam(value: string): Promise<string> {
+async function decryptThenEncrypt(value: string): Promise<string> {
   const key = await getAesKey()
-  return encrypt(value, key)
+  const plaintext = await decrypt(value, key)
+  return encrypt(plaintext, key)
 }
 
 /** 获取指定会话下的指令集列表 */
 export async function fetchInstructionSets(
   sessionId: string,
 ): Promise<ApiResponse<InstructionSetItem[]>> {
-  const encryptedId = await encryptParam(sessionId)
+  const encryptedId = await decryptThenEncrypt(sessionId)
   const res = await client.get<ApiResponse<InstructionSetItem[]>>(
     '/instruction/list',
     { params: { session_id: encryptedId } },
@@ -72,7 +72,7 @@ export async function restoreInstructionSet(
 
 /** 导出指令集为 Excel 文件（触发浏览器下载） */
 export async function exportInstructionSets(sessionId: string): Promise<void> {
-  const encryptedId = await encryptParam(sessionId)
+  const encryptedId = await decryptThenEncrypt(sessionId)
   const token = localStorage.getItem('token')
 
   const response = await fetch(`/instruction/export?session_id=${encodeURIComponent(encryptedId)}`, {
