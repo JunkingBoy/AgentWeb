@@ -86,19 +86,29 @@ export const useChatStore = create<ChatState>((set) => ({
     try {
       const res = await fetchSessions()
       if (res.code === 1001 && res.data) {
-        // 并行取每个会话的第一条消息作为标题
-        const sessions: SessionInfo[] = await Promise.all(
+        // 并行取每个会话的第一条消息作为标题 + 指令集状态
+        const results = await Promise.all(
           res.data.map(async (id) => {
             try {
-              const msgRes = await fetchSessionMessages(id)
-              if (msgRes.code === 1001 && msgRes.data) {
-                return { id, title: extractTitle(msgRes.data) }
-              }
+              const [msgRes, insRes] = await Promise.all([
+                fetchSessionMessages(id),
+                fetchInstructionSets(id).catch(() => null),
+              ])
+              const title = msgRes.code === 1001 && msgRes.data ? extractTitle(msgRes.data) : ''
+              const sets = insRes?.code === 1001 && insRes.data ? insRes.data : null
+              return { id, title, sets }
             } catch { /* 单个失败不影响其他 */ }
-            return { id, title: '' }
+            return { id, title: '', sets: null }
           }),
         )
-        set({ sessions, sessionsLoaded: true })
+
+        const sessions: SessionInfo[] = results.map(({ id, title }) => ({ id, title }))
+        const instructionSetsBySession: Record<string, InstructionSetItem[]> = {}
+        for (const r of results) {
+          if (r.sets) instructionSetsBySession[r.id] = r.sets
+        }
+
+        set({ sessions, sessionsLoaded: true, instructionSetsBySession })
       }
     } catch {
       console.warn('[chatStore] 加载会话列表失败')
@@ -117,9 +127,13 @@ export const useChatStore = create<ChatState>((set) => ({
     if (msgRes.code === 1001 && msgRes.data) {
       const updates: Partial<ChatState> = { historyMessages: msgRes.data, loadingHistory: false }
       if (insRes?.code === 1001 && insRes.data) {
-        updates.instructionSetsBySession = { [sessionId]: insRes.data }
+        set(s => ({
+          ...updates,
+          instructionSetsBySession: { ...s.instructionSetsBySession, [sessionId]: insRes.data },
+        }))
+      } else {
+        set(updates)
       }
-      set(updates)
     } else {
       set({ loadingHistory: false })
     }

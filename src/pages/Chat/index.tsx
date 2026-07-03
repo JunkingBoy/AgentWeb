@@ -35,6 +35,15 @@ import ModeSelector from '@/components/common/ModeSelector'
 import TestCaseView from '@/components/common/TestCaseCard'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
 import { useSidebarContext } from '@/contexts/SidebarContext'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import styles from './index.module.css'
 
 /* ===== 类型定义 ===== */
@@ -334,6 +343,8 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
+  const [exportResultOpen, setExportResultOpen] = useState(false)
+  const [exportResult, setExportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
@@ -513,6 +524,10 @@ export default function Chat() {
       // 兜底 — 任意非成功事件显示为系统消息（便于调试）
       if (msg.code !== 3001) {
         console.warn('[Chat] 未处理的事件: event=%s code=%d msg=%s', msg.event, msg.code, msg.msg)
+        // 重置流式等待状态，避免页面因等待响应而卡死（如后端校验失败时仍保持 isTyping=true）
+        setIsTyping(false)
+        currentRequestIdRef.current = null
+        useChatStore.setState({ isThinking: false })
         setMessages(prev => [
           ...prev,
           {
@@ -813,12 +828,14 @@ export default function Chat() {
               if (!sessionId) return
               try {
                 await exportInstructionSets(sessionId)
-                toast.success('指令集导出成功')
+                setExportResult({ type: 'success', message: '指令集导出成功，文件已开始下载' })
+                setExportResultOpen(true)
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : '导出失败')
+                setExportResult({ type: 'error', message: e instanceof Error ? e.message : '导出失败' })
+                setExportResultOpen(true)
               }
             }}
-            title="导出当前会话的指令集为 Excel"
+            title={!sessionId || !instructionSetsBySession[sessionId]?.length ? '当前会话没有指令集数据，无法导出' : '导出当前会话的指令集为 Excel'}
           >
             <Download size={13} />
             <span>导出</span>
@@ -1097,6 +1114,37 @@ export default function Chat() {
               : '服务端未连接 · 本地模式 · Enter 发送 · Shift+Enter 换行'}
         </div>
       </div>
+
+      {/* 导出结果弹窗 */}
+      <Dialog open={exportResultOpen} onOpenChange={setExportResultOpen}>
+        <DialogContent className="w-[92%] max-w-sm rounded-2xl p-0 gap-0 border-0 ring-0 shadow-xl bg-white overflow-hidden" showCloseButton={false}>
+          <div className="px-6 pt-6 pb-3">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-[16px] font-semibold text-slate-800">
+                <span className="flex items-center gap-2">
+                  {exportResult?.type === 'success' ? (
+                    <span className="text-green-600">✓</span>
+                  ) : (
+                    <span className="text-red-500">✗</span>
+                  )}
+                  导出{exportResult?.type === 'success' ? '成功' : '失败'}
+                </span>
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500 mt-1">
+                {exportResult?.message}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <DialogFooter className="px-6 py-4 flex-row justify-end gap-2.5 border-0 bg-transparent -mx-0 -mb-0 rounded-none">
+            <Button
+              onClick={() => setExportResultOpen(false)}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm h-9 px-4 shadow-none"
+            >
+              知道了
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

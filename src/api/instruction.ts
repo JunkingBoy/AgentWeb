@@ -70,6 +70,16 @@ export async function restoreInstructionSet(
   return res.data
 }
 
+/** 导出专用错误，携带后端返回的 code，便于 UI 层按错误码区分处理 */
+export class ExportError extends Error {
+  code: number
+  constructor(code: number, message: string) {
+    super(message)
+    this.code = code
+    this.name = 'ExportError'
+  }
+}
+
 /** 导出指令集为 Excel 文件（触发浏览器下载） */
 export async function exportInstructionSets(sessionId: string): Promise<void> {
   const encryptedId = await decryptThenEncrypt(sessionId)
@@ -80,15 +90,15 @@ export async function exportInstructionSets(sessionId: string): Promise<void> {
   })
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ msg: '导出请求失败' }))
-    throw new Error(err.msg || '导出失败')
+    const err = await response.json().catch(() => ({ code: 0, msg: '导出请求失败' }))
+    throw new ExportError(err.code || 0, err.msg || '导出失败')
   }
 
   // 后端失败时返回 JSON，成功时返回 Excel 文件
   const contentType = response.headers.get('Content-Type') || ''
   if (contentType.includes('json')) {
     const err = await response.json()
-    throw new Error(err.msg || '导出失败')
+    throw new ExportError(err.code || 0, err.msg || '导出失败')
   }
 
   // 从 Content-Disposition 解析文件名

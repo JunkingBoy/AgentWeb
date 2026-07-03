@@ -11,11 +11,19 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useSidebarContext } from '@/contexts/SidebarContext'
 import { exportInstructionSets } from '@/api/instruction'
-import { toast } from 'sonner'
 import { useChatStore } from '@/stores/chatStore'
 import ChangeUsernameDialog from '@/components/common/ChangeUsernameDialog'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog'
 import ThemeToggle from '@/components/common/ThemeToggle'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import styles from './index.module.css'
 
 /* 头像配色池 — 根据用户名取模确定颜色 */
@@ -45,6 +53,8 @@ export default function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showUsername, setShowUsername] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [exportResultOpen, setExportResultOpen] = useState(false)
+  const [exportResult, setExportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const { setCollapsed, searchTrigger } = useSidebarContext()
   const user = useAuthStore(s => s.user)
@@ -56,6 +66,7 @@ export default function Sidebar() {
   const loadSessions = useChatStore(s => s.loadSessions)
   const selectSession = useChatStore(s => s.selectSession)
   const deleteSession = useChatStore(s => s.deleteSession)
+  const instructionSetsBySession = useChatStore(s => s.instructionSetsBySession)
 
   // 挂载时加载会话列表
   useEffect(() => {
@@ -172,20 +183,33 @@ export default function Sidebar() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="right" className={styles.dropMenu}>
-                  <DropdownMenuItem
-                    className={styles.menuItem}
-                    onClick={async () => {
-                      try {
-                        await exportInstructionSets(s.id)
-                        toast.success('指令集导出成功')
-                      } catch (e) {
-                        toast.error(e instanceof Error ? e.message : '导出失败')
-                      }
-                    }}
-                  >
-                    <Download size={14} />
-                    <span>导出指令集</span>
-                  </DropdownMenuItem>
+                  {instructionSetsBySession[s.id]?.length ? (
+                    <DropdownMenuItem
+                      className={styles.menuItem}
+                      onClick={async () => {
+                        try {
+                          await exportInstructionSets(s.id)
+                          setExportResult({ type: 'success', message: '指令集导出成功，文件已开始下载' })
+                          setExportResultOpen(true)
+                        } catch (e) {
+                          setExportResult({ type: 'error', message: e instanceof Error ? e.message : '导出失败' })
+                          setExportResultOpen(true)
+                        }
+                      }}
+                    >
+                      <Download size={14} />
+                      <span>导出指令集</span>
+                    </DropdownMenuItem>
+                  ) : (
+                    <div
+                      className={cn(styles.menuItem, styles.menuItemDisabled)}
+                      onClick={e => e.stopPropagation()}
+                      onPointerDown={e => e.stopPropagation()}
+                    >
+                      <Download size={14} />
+                      <span>导出指令集</span>
+                    </div>
+                  )}
                   <DropdownMenuItem
                     className={cn(styles.menuItem, styles.menuDanger)}
                     onClick={e => { e.stopPropagation(); deleteSession(s.id) }}
@@ -236,6 +260,37 @@ export default function Sidebar() {
 
       {/* 修改密码弹框 */}
       <ChangePasswordDialog open={showPassword} onOpenChange={setShowPassword} />
+
+      {/* 导出结果弹窗 */}
+      <Dialog open={exportResultOpen} onOpenChange={setExportResultOpen}>
+        <DialogContent className="w-[92%] max-w-sm rounded-2xl p-0 gap-0 border-0 ring-0 shadow-xl bg-white overflow-hidden" showCloseButton={false}>
+          <div className="px-6 pt-6 pb-3">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-[16px] font-semibold text-slate-800">
+                <span className="flex items-center gap-2">
+                  {exportResult?.type === 'success' ? (
+                    <span className="text-green-600">✓</span>
+                  ) : (
+                    <span className="text-red-500">✗</span>
+                  )}
+                  导出{exportResult?.type === 'success' ? '成功' : '失败'}
+                </span>
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500 mt-1">
+                {exportResult?.message}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <DialogFooter className="px-6 py-4 flex-row justify-end gap-2.5 border-0 bg-transparent -mx-0 -mb-0 rounded-none">
+            <Button
+              onClick={() => setExportResultOpen(false)}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm h-9 px-4 shadow-none"
+            >
+              知道了
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   )
 }
