@@ -127,9 +127,10 @@ export const useChatStore = create<ChatState>((set) => ({
     if (msgRes.code === 1001 && msgRes.data) {
       const updates: Partial<ChatState> = { historyMessages: msgRes.data, loadingHistory: false }
       if (insRes?.code === 1001 && insRes.data) {
+        const sets = insRes.data
         set(s => ({
           ...updates,
-          instructionSetsBySession: { ...s.instructionSetsBySession, [sessionId]: insRes.data },
+          instructionSetsBySession: { ...s.instructionSetsBySession, [sessionId]: sets },
         }))
       } else {
         set(updates)
