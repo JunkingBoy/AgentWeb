@@ -12,6 +12,19 @@ async function decryptThenEncrypt(value: string): Promise<string> {
   return encrypt(plaintext, key)
 }
 
+/**
+ * 统一加密：原始 UUID（来自 WS）→ 直接 AES 加密；
+ * 已加密值（来自 HTTP /chat/sessions）→ 解密后重新加密。
+ * 适用于 session_id / instruction_id 需要经 HTTP 接口传递的场景。
+ */
+async function ensureEncrypted(value: string): Promise<string> {
+  if (/^[0-9a-f]{32}$/i.test(value)) {
+    const key = await getAesKey()
+    return encrypt(value, key)
+  }
+  return decryptThenEncrypt(value)
+}
+
 /** 获取指定会话下的指令集列表 */
 export async function fetchInstructionSets(
   sessionId: string,
@@ -45,12 +58,13 @@ export interface BatchSaveResult {
 export async function batchSaveInstructionSets(
   sets: InstructionSetItem[],
 ): Promise<ApiResponse<BatchSaveResult>> {
-  // session_id / instruction_id 后端返回已是加密值，前端直接透传
-  const body = sets.map(s => ({
-    session_id: s.session_id,
-    instruction_id: s.instruction_id,
+  // session_id / instruction_id 来自 WS 或 HTTP 均为原始 UUID，调 HTTP 接口需要 AES 加密
+  const key = await getAesKey()
+  const body = await Promise.all(sets.map(async (s) => ({
+    session_id: await encrypt(s.session_id, key),
+    instruction_id: await encrypt(s.instruction_id, key),
     cases: s.cases,
-  }))
+  })))
   const res = await client.put<ApiResponse<BatchSaveResult>>(
     '/instruction/batch',
     body,
@@ -82,7 +96,7 @@ export class ExportError extends Error {
 
 /** 导出指令集为 Excel 文件（触发浏览器下载） */
 export async function exportInstructionSets(sessionId: string): Promise<void> {
-  const encryptedId = await decryptThenEncrypt(sessionId)
+  const encryptedId = await ensureEncrypted(sessionId)
   const token = localStorage.getItem('token')
 
   const response = await fetch(`/instruction/export?session_id=${encodeURIComponent(encryptedId)}`, {
