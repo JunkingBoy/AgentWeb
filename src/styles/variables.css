@@ -49,6 +49,10 @@
   --color-error-border: #fecaca;
   --color-success-bg: #f0fdf4;
   --color-success-border: #bbf7d0;
+
+  /* ===== 滚动条 ===== */
+  --color-scrollbar-thumb: #e2e8f0;
+  --color-scrollbar-thumb-hover: #cbd5e1;
 }
 
 /* ===== 暗色模式（class 策略，由 next-themes 控制） ===== */
@@ -95,4 +99,8 @@
   --color-error-border: rgba(239, 68, 68, 0.3);
   --color-success-bg: rgba(34, 197, 94, 0.15);
   --color-success-border: rgba(34, 197, 94, 0.3);
+
+  /* ===== 滚动条 ===== */
+  --color-scrollbar-thumb: #1e293b;
+  --color-scrollbar-thumb-hover: #334155;
 }

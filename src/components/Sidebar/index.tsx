@@ -55,6 +55,7 @@ export default function Sidebar() {
   const [showPassword, setShowPassword] = useState(false)
   const [exportResultOpen, setExportResultOpen] = useState(false)
   const [exportResult, setExportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [deletingSession, setDeletingSession] = useState<string | null>(null)
 
   const { setCollapsed, searchTrigger } = useSidebarContext()
   const user = useAuthStore(s => s.user)
@@ -212,7 +213,7 @@ export default function Sidebar() {
                   )}
                   <DropdownMenuItem
                     className={cn(styles.menuItem, styles.menuDanger)}
-                    onClick={e => { e.stopPropagation(); deleteSession(s.id) }}
+                    onClick={e => { e.stopPropagation(); setDeletingSession(s.id) }}
                   >
                     <Trash2 size={14} />
                     <span>删除对话</span>
@@ -287,6 +288,42 @@ export default function Sidebar() {
               className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm h-9 px-4 shadow-none"
             >
               知道了
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除会话确认弹窗 */}
+      <Dialog open={!!deletingSession} onOpenChange={(open) => { if (!open) setDeletingSession(null) }}>
+        <DialogContent className="w-[92%] max-w-sm rounded-2xl p-0 gap-0 border-0 ring-0 shadow-xl bg-white overflow-hidden" showCloseButton={false}>
+          <div className="px-6 pt-6 pb-3">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-[16px] font-semibold text-slate-800">
+                删除此对话？
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500 mt-3 leading-relaxed">
+                删除后，这条对话记录将无法找回，其中包含的文件也将一并被删除。
+                若你之前分享过对话，分享链接也将无法查看。
+                <br /><br />
+                确定删除此对话？
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <DialogFooter className="px-6 py-4 flex-row justify-end gap-2.5 border-0 bg-transparent -mx-0 -mb-0 rounded-none">
+            <Button
+              onClick={() => setDeletingSession(null)}
+              className="rounded-lg bg-gray-100 hover:bg-gray-200 text-slate-700 text-sm h-9 px-4 shadow-none"
+            >
+              取消
+            </Button>
+            <Button
+              onClick={() => {
+                if (deletingSession) deleteSession(deletingSession)
+                setDeletingSession(null)
+              }}
+              className="rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm h-9 px-4 shadow-none"
+            >
+              删除
             </Button>
           </DialogFooter>
         </DialogContent>
