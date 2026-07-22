@@ -78,7 +78,16 @@ export const useChatStore = create<ChatState>((set) => ({
       historyMessages: [],
     }))
   },
-  setSessionId: (id) => set({ sessionId: id }),
+  setSessionId: (id) => {
+    set({ sessionId: id })
+    // 新 session_id 不在侧边栏列表中 → 刷新列表，让会话立即出现
+    if (id) {
+      const { sessions } = useChatStore.getState()
+      if (!sessions.some(s => s.id === id)) {
+        useChatStore.getState().loadSessions()
+      }
+    }
+  },
 
   /* ===== 会话列表 ===== */
 
@@ -147,11 +156,16 @@ export const useChatStore = create<ChatState>((set) => ({
     try {
       const res = await deleteSessionAPI(sessionId)
       if (res.code === 1001) {
+        const prevSelected = useChatStore.getState().selectedSessionId
         set(s => ({
           sessions: s.sessions.filter(s => s.id !== sessionId),
           selectedSessionId: s.selectedSessionId === sessionId ? null : s.selectedSessionId,
           historyMessages: s.selectedSessionId === sessionId ? [] : s.historyMessages,
         }))
+        // 删除的是当前查看的会话 → 自动进入新对话
+        if (prevSelected === sessionId) {
+          useChatStore.getState().requestNewChat()
+        }
       }
     } catch {
       console.warn('[chatStore] 删除会话失败')

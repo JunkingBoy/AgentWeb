@@ -203,6 +203,32 @@
   padding: 8px 8px;
 }
 
+/* 列表滚动条 — 适配深浅色模式 */
+.list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.list::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb, var(--color-text-muted));
+  border-radius: 999px;
+  transition: background 0.15s;
+}
+
+.list::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-thumb-hover, var(--color-text-tertiary));
+}
+
+@supports (scrollbar-color: auto) {
+  .list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb, var(--color-text-muted)) transparent;
+  }
+}
+
 .item {
   display: flex;
   align-items: flex-start;
