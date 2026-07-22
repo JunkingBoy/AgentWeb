@@ -398,3 +398,8 @@
 .menuDanger:hover {
   background: var(--color-error-bg);
 }
+
+.menuItemDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
