@@ -4,8 +4,15 @@ import type { ApiResponse } from '@/types/api'
 export interface RegisterRequest {
   phone: string
   email: string
+  code: string        // 6位验证码明文
   password: string
   password_confirm: string
+}
+
+/** 注册发送验证码 */
+export async function sendRegisterCode(data: { email: string }): Promise<ApiResponse<null>> {
+  const res = await client.post<ApiResponse<null>>('/user/send', data)
+  return res.data
 }
 
 export interface LoginRequest {

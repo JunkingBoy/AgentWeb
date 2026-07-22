@@ -304,6 +304,91 @@
   text-align: center;
 }
 
+/* ===== 验证码行 ===== */
+.codeRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.codeInputWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sendCodeBtn {
+  flex-shrink: 0;
+  height: 2rem;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.sendCodeBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #818cf8, var(--color-primary));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.sendCodeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== 步骤内容（布局中立，由外层 formWrapper 控制间距） ===== */
+.stepContent {
+  display: contents;
+}
+
+.stepContent > * {
+  animation: stepFadeIn 0.35s ease-out;
+}
+
+@keyframes stepFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ===== 返回上一步 ===== */
+.backRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.backBtn:hover {
+  color: var(--color-primary);
+}
+
 /* ===== 提交按钮 ===== */
 .submit {
   width: 100%;
