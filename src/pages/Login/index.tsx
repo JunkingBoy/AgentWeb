@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { registerUser, loginUser } from '@/api/user'
+import { registerUser, loginUser, sendRegisterCode } from '@/api/user'
 import { getAesKey } from '@/utils/keyManager'
 import { encrypt } from '@/utils/crypto'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
@@ -40,12 +40,19 @@ export default function Login() {
   const navigate = useNavigate()
   const cardRef = useRef<HTMLDivElement>(null)
   const submitRef = useRef<HTMLDivElement>(null)
+  const codeRef = useRef<HTMLInputElement>(null)
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [tab, setTab] = useState<'login' | 'register'>('login')
+  const [regStep, setRegStep] = useState<'form' | 'password'>('form')
   const [agreed, setAgreed] = useState(false)
   const [serverError, setServerError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [showConfirmPwd, setShowConfirmPwd] = useState(false)
+  const [code, setCode] = useState('')
+  const [codeErr, setCodeErr] = useState('')
+  const [codeSending, setCodeSending] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
   const pwdBtnRef = useRef<HTMLButtonElement>(null)
   const confirmPwdBtnRef = useRef<HTMLButtonElement>(null)
   const isLogin = tab === 'login'
@@ -55,18 +62,93 @@ export default function Login() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    setValue,
+    getValues,
+    setError,
   } = useForm<LoginFields>({
     resolver: zodResolver(isLogin ? loginSchema : registerSchema),
   })
+
+  // 验证码倒计时
+  useEffect(() => {
+    if (cooldown > 0) {
+      cooldownRef.current = setInterval(() => {
+        setCooldown(prev => {
+          if (prev <= 1) {
+            if (cooldownRef.current) clearInterval(cooldownRef.current)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current)
+    }
+  }, [cooldown > 0])
 
   const fieldError = errors as Record<string, { message?: string } | undefined>
 
   const switchTab = (t: 'login' | 'register') => {
     if (t !== tab) {
       setTab(t)
+      setRegStep('form')
+      setCode('')
+      setCodeErr('')
+      setCooldown(0)
       setServerError('')
       setSuccessMsg('')
       reset()
+    }
+  }
+
+  /* ===== 获取验证码 ===== */
+  const handleGetCode = async () => {
+    if (cooldown > 0 || codeSending) return
+    // 校验手机号和邮箱格式
+    const pv = /^1[3-9]\d{9}$/.test(getValues('phone'))
+    const ev = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(getValues('email'))
+    if (!pv) { setError('phone', { message: '请输入正确的手机号' }); return }
+    if (!ev) { setError('email', { message: '请输入正确的邮箱地址' }); return }
+
+    setCodeErr('')
+    setServerError('')
+    setCodeSending(true)
+
+    try {
+      const aesKey = await getAesKey()
+      const encryptedEmail = await encrypt(getValues('email'), aesKey)
+      // 注册场景只传 email（不传 phone），后端走注册验证分支
+      const res = await sendRegisterCode({ email: encryptedEmail })
+
+      if (res.code === 1001) {
+        setCooldown(60)
+      } else {
+        setServerError(res.msg || '发送验证码失败')
+      }
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
+    } finally {
+      setCodeSending(false)
+    }
+  }
+
+  /* ===== 注册 Step 1 → Step 2 ===== */
+  const handleContinue = () => {
+    const pv = /^1[3-9]\d{9}$/.test(getValues('phone'))
+    const ev = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(getValues('email'))
+    const cv = /^\d{6}$/.test(code)
+
+    setServerError('')
+    setCodeErr('')
+
+    if (!pv) { setError('phone', { message: '请输入正确的手机号' }) }
+    if (!ev) { setError('email', { message: '请输入正确的邮箱地址' }) }
+    if (!cv) { setCodeErr('验证码为6位数字') }
+
+    if (pv && ev && cv) {
+      setRegStep('password')
+      setTimeout(() => submitRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
   }
 
@@ -117,6 +199,7 @@ export default function Login() {
       const res = await registerUser({
         phone: encryptedPhone,
         email: encryptedEmail,
+        code,                                           // ← 传入验证码
         password: encryptedPassword,
         password_confirm: encryptedConfirm,
       })
@@ -127,9 +210,16 @@ export default function Login() {
         setSuccessMsg('注册成功')
         setTimeout(() => switchTab('login'), 1200)
       } else {
+        // 失败 → 回退到 Step 1，显示错误原因
+        setRegStep('form')
+        setValue('password', '')
+        setValue('password_confirm', '')
         setServerError(res.msg || '注册失败')
       }
     } catch (e) {
+      setRegStep('form')
+      setValue('password', '')
+      setValue('password_confirm', '')
       setServerError(e instanceof Error ? e.message : '网络异常，请稍后重试')
     }
   }
@@ -169,81 +259,181 @@ export default function Login() {
         </div>
 
         {/* 表单 */}
-        <form className={styles.form} noValidate onSubmit={(e) => { console.log('[Login] form onSubmit event', { isSubmitting, agreed }); handleSubmit(onSubmit)(e) }}>
+        <form className={styles.form} noValidate onSubmit={(e) => { console.log('[Login] form onSubmit event', { isSubmitting, agreed, regStep }); handleSubmit(onSubmit)(e) }}>
           <div className={styles.formWrapper}>
-          {/* 手机号（登录 + 注册共有） */}
-          <div className={styles.field}>
-            <Label htmlFor="phone">手机号</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="请输入手机号"
-              className={cn(fieldError.phone && 'border-red-500')}
-              {...register('phone')}
-            />
-            {fieldError.phone && (
-              <p className={styles.error}>{fieldError.phone.message}</p>
-            )}
-          </div>
 
-          {/* 邮箱（仅注册时显示） */}
-          <div className={cn(styles.fieldConditional, !isLogin && styles.visible)}>
-            <div className={cn(styles.field, styles.fieldInner)}>
+          {/* ===== 登录模式 ===== */}
+          {isLogin && (
+            <>
+            {/* 手机号 */}
+            <div className={styles.field}>
+              <Label htmlFor="phone">手机号</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="请输入手机号"
+                className={cn(fieldError.phone && 'border-red-500')}
+                {...register('phone')}
+              />
+              {fieldError.phone && (
+                <p className={styles.error}>{fieldError.phone.message}</p>
+              )}
+            </div>
+
+            {/* 密码 */}
+            <div className={styles.field}>
+              <div className={styles.fieldHeader}>
+                <Label htmlFor="password">密码</Label>
+                <button type="button" className={styles.forgot} onClick={() => navigate('/forgot-password')}>
+                  忘记密码？
+                </button>
+              </div>
+              <div className={styles.pwdWrapper}>
+                <Input
+                  id="password"
+                  type={showPwd ? 'text' : 'password'}
+                  placeholder="请输入密码"
+                  className={cn(fieldError.password && 'border-red-500')}
+                  {...register('password')}
+                />
+                <button
+                  ref={pwdBtnRef}
+                  type="button"
+                  className={styles.pwdToggle}
+                  onMouseDown={() => setShowPwd(true)}
+                  onMouseUp={() => setShowPwd(false)}
+                  onMouseLeave={() => setShowPwd(false)}
+                  onTouchStart={() => setShowPwd(true)}
+                  onTouchEnd={() => setShowPwd(false)}
+                  tabIndex={-1}
+                >
+                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {fieldError.password && (
+                <p className={styles.error}>{fieldError.password.message}</p>
+              )}
+            </div>
+            </>
+          )}
+
+          {/* ===== 注册 Step 1：手机号 + 邮箱 + 验证码 ===== */}
+          {!isLogin && regStep === 'form' && (
+            <div className={styles.stepContent}>
+            {/* 手机号 */}
+            <div className={styles.field}>
+              <Label htmlFor="phone">手机号</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="请输入手机号"
+                className={cn(fieldError.phone && 'border-red-500')}
+                {...register('phone')}
+              />
+              {fieldError.phone && (
+                <p className={styles.error}>{fieldError.phone.message}</p>
+              )}
+            </div>
+
+            {/* 邮箱 */}
+            <div className={styles.field}>
               <Label htmlFor="email">邮箱</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="请输入邮箱地址"
+                placeholder="请输入QQ或网易邮箱地址"
                 className={cn(fieldError.email && 'border-red-500')}
-                tabIndex={isLogin ? -1 : undefined}
                 {...register('email')}
               />
               {fieldError.email && (
                 <p className={styles.error}>{fieldError.email.message}</p>
               )}
             </div>
-          </div>
 
-          {/* 密码（登录 + 注册共有） */}
-          <div className={styles.field}>
-            <div className={styles.fieldHeader}>
-              <Label htmlFor="password">密码</Label>
-              {isLogin && (
-                <button type="button" className={styles.forgot} onClick={() => navigate('/forgot-password')}>
-                  忘记密码？
+            {/* 验证码 */}
+            <div className={styles.field}>
+              <Label htmlFor="code">验证码</Label>
+              <div className={styles.codeRow}>
+                <div className={styles.codeInputWrap}>
+                  <Input
+                    ref={codeRef}
+                    id="code"
+                    type="text"
+                    placeholder="6位数字验证码"
+                    className={cn(codeErr && 'border-red-500')}
+                    value={code}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                      setCode(v)
+                      if (codeErr) setCodeErr('')
+                    }}
+                    maxLength={6}
+                    autoComplete="off"
+                  />
+                  {codeErr && <p className={styles.error}>{codeErr}</p>}
+                </div>
+                <button
+                  type="button"
+                  className={styles.sendCodeBtn}
+                  disabled={cooldown > 0 || codeSending}
+                  onClick={handleGetCode}
+                >
+                  {codeSending ? '发送中' : cooldown > 0 ? `${cooldown}s` : '获取验证码'}
                 </button>
-              )}
+              </div>
             </div>
-            <div className={styles.pwdWrapper}>
-              <Input
-                id="password"
-                type={showPwd ? 'text' : 'password'}
-                placeholder={isLogin ? '请输入密码' : '请设置密码（至少 6 位）'}
-                className={cn(fieldError.password && 'border-red-500')}
-                {...register('password')}
-              />
+            </div>
+          )}
+
+          {/* ===== 注册 Step 2：密码 + 确认密码 ===== */}
+          {!isLogin && regStep === 'password' && (
+            <div className={styles.stepContent}>
+            {/* 返回上一步 */}
+            <div className={styles.backRow}>
               <button
-                ref={pwdBtnRef}
                 type="button"
-                className={styles.pwdToggle}
-                onMouseDown={() => setShowPwd(true)}
-                onMouseUp={() => setShowPwd(false)}
-                onMouseLeave={() => setShowPwd(false)}
-                onTouchStart={() => setShowPwd(true)}
-                onTouchEnd={() => setShowPwd(false)}
-                tabIndex={-1}
+                className={styles.backBtn}
+                onClick={() => {
+                  setRegStep('form')
+                  setServerError('')
+                }}
               >
-                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                ← 返回上一步
               </button>
             </div>
-            {fieldError.password && (
-              <p className={styles.error}>{fieldError.password.message}</p>
-            )}
-          </div>
 
-          {/* 确认密码（仅注册时显示） */}
-          <div className={cn(styles.fieldConditional, !isLogin && styles.visible)}>
-            <div className={cn(styles.field, styles.fieldInner)}>
+            {/* 密码 */}
+            <div className={styles.field}>
+              <Label htmlFor="password">密码</Label>
+              <div className={styles.pwdWrapper}>
+                <Input
+                  id="password"
+                  type={showPwd ? 'text' : 'password'}
+                  placeholder="请设置密码（至少 6 位）"
+                  className={cn(fieldError.password && 'border-red-500')}
+                  {...register('password')}
+                />
+                <button
+                  ref={pwdBtnRef}
+                  type="button"
+                  className={styles.pwdToggle}
+                  onMouseDown={() => setShowPwd(true)}
+                  onMouseUp={() => setShowPwd(false)}
+                  onMouseLeave={() => setShowPwd(false)}
+                  onTouchStart={() => setShowPwd(true)}
+                  onTouchEnd={() => setShowPwd(false)}
+                  tabIndex={-1}
+                >
+                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {fieldError.password && (
+                <p className={styles.error}>{fieldError.password.message}</p>
+              )}
+            </div>
+
+            {/* 确认密码 */}
+            <div className={styles.field}>
               <Label htmlFor="password_confirm">确认密码</Label>
               <div className={styles.pwdWrapper}>
                 <Input
@@ -251,7 +441,6 @@ export default function Login() {
                   type={showConfirmPwd ? 'text' : 'password'}
                   placeholder="请再次输入密码"
                   className={cn(fieldError.password_confirm && 'border-red-500')}
-                  tabIndex={isLogin ? -1 : undefined}
                   {...register('password_confirm')}
                 />
                 <button
@@ -272,7 +461,8 @@ export default function Login() {
                 <p className={styles.error}>{fieldError.password_confirm.message}</p>
               )}
             </div>
-          </div>
+            </div>
+          )}
 
           </div>
 
@@ -284,22 +474,37 @@ export default function Login() {
             <p className={styles.serverError}>{serverError}</p>
           )}
 
-          <div ref={submitRef} onClick={() => console.log('[Login] submit wrapper clicked', { isSubmitting, agreed, isLogin })}>
-            <Button
-              type="submit"
-              className={styles.submit}
-              disabled={isSubmitting || !agreed}
-            >
-              {isSubmitting
-                ? '处理中...'
-                : isLogin
-                  ? '登录'
-                  : '注册'}
-            </Button>
+          <div ref={submitRef}>
+            {isLogin ? (
+              <Button
+                type="submit"
+                className={styles.submit}
+                disabled={isSubmitting || !agreed}
+              >
+                {isSubmitting ? '处理中...' : '登录'}
+              </Button>
+            ) : regStep === 'form' ? (
+              <Button
+                type="button"
+                className={styles.submit}
+                disabled={!agreed}
+                onClick={handleContinue}
+              >
+                继续
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className={styles.submit}
+                disabled={isSubmitting || !agreed}
+              >
+                {isSubmitting ? '处理中...' : '注册'}
+              </Button>
+            )}
           </div>
         </form>
 
-        {/* 协议勾选 — 卡片底部居中 */}
+        {/* 协议勾选 */}
         <div
           className={styles.agreementLine}
           onClick={() => setAgreed(!agreed)}
