@@ -27,13 +27,16 @@ import {
 import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
 import { useChatStore } from '@/stores/chatStore'
-import { deleteMessageAPI, stopStreamAPI } from '@/api/chat'
+import { deleteMessagesAPI, fetchSessionMessages, stopStreamAPI, type ChatMessage } from '@/api/chat'
 import { exportInstructionSets } from '@/api/instruction'
 import { toast } from 'sonner'
 import type { ContextUsage, InstructionSetItem } from '@/types/api'
 import ModeSelector from '@/components/common/ModeSelector'
 import TestCaseView from '@/components/common/TestCaseCard'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
+import BatchDeleteBar from '@/components/common/BatchDeleteBar'
+import CommonDialog from '@/components/common/CommonDialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useSidebarContext } from '@/contexts/SidebarContext'
 import {
   Dialog,
@@ -59,6 +62,25 @@ interface DisplayMessage {
   isTestResult?: boolean
   /** 指令集列表（test 模式独有） */
   instructionSets?: InstructionSetItem[]
+}
+
+/** 把后端历史消息（ChatMessage[]）映射为前端展示消息（DisplayMessage[]） */
+function mapHistoryToDisplay(
+  history: ChatMessage[],
+  sessionId: string,
+  instructionSetsBySession: Record<string, InstructionSetItem[]>,
+): DisplayMessage[] {
+  const sessionSets = instructionSetsBySession[sessionId]
+  return history.map((m, i) => ({
+    id: `hist_${sessionId.slice(0, 8)}_${i}`,
+    role: m.role === 'assistant' ? 'agent' : 'user',
+    content: m.content,
+    timestamp: new Date(m.c_time!),
+    requestId: m.request_id,
+    // 内容匹配测试用例格式且有指令集数据 → 关联渲染
+    isTestResult: !!(sessionSets && m.role === 'assistant' && m.content.trim().startsWith('[')),
+    instructionSets: sessionSets,
+  }))
 }
 
 /* ===== Mock 回复池（兜底，WS 不通时使用） ===== */
@@ -190,15 +212,19 @@ const suggestions = [
 interface MessageListProps {
   messages: DisplayMessage[]
   copiedId: string | null
+  /** 已选中的消息 id 集合（用户提问 + AI 回复都在内），用于置灰/勾选 */
+  selectedMessageIds: Set<string>
   onCopy: (text: string, id: string) => void
-  onDeleteMessage: (requestId: string) => void
+  /** 点击删除按钮 / 取消勾选 AI 回复时，切换整组问答的选中状态 */
+  onToggleGroup: (requestId: string) => void
 }
 
 const MessageList = memo(function MessageList({
   messages,
   copiedId,
+  selectedMessageIds,
   onCopy,
-  onDeleteMessage,
+  onToggleGroup,
 }: MessageListProps) {
   const elements: React.ReactNode[] = []
   let lastDate: string | null = null
@@ -230,6 +256,8 @@ const MessageList = memo(function MessageList({
       return
     }
 
+    const isSelected = selectedMessageIds.has(msg.id)
+
     const bubble = (
       <div key={msg.id} className={styles.messageGroup} {...(msg.role === 'user' ? { 'data-qmark': msg.id } : {})}>
         <div
@@ -252,6 +280,12 @@ const MessageList = memo(function MessageList({
                 msg.role === 'user'
                   ? styles.bubbleUser
                   : styles.bubbleAgent
+              } ${
+                isSelected
+                  ? msg.role === 'user'
+                    ? styles.bubbleUserSelected
+                    : styles.bubbleAgentSelected
+                  : ''
               }`}
             >
               {msg.role === 'user' ? (
@@ -279,6 +313,28 @@ const MessageList = memo(function MessageList({
                 msg.role === 'user' ? 'flex-end' : 'flex-start',
             }}
           >
+            {/* 选中态：用户提问勾选锁定不可取消；AI 回复勾选可取消（取消即取消整组） */}
+            {isSelected && (
+              <Checkbox
+                checked
+                disabled={msg.role === 'user'}
+                onCheckedChange={
+                  msg.role === 'agent'
+                    ? () => onToggleGroup(msg.requestId!)
+                    : undefined
+                }
+                className={
+                  msg.role === 'user'
+                    ? styles.userLockCheckbox
+                    : styles.agentCheckbox
+                }
+                aria-label={
+                  msg.role === 'user'
+                    ? '已选择，不可单独取消'
+                    : '取消选择该组对话'
+                }
+              />
+            )}
             <span className={styles.messageTime}>
               {formatTime(msg.timestamp)}
             </span>
@@ -294,12 +350,21 @@ const MessageList = memo(function MessageList({
                   <Copy size={13} />
                 )}
               </button>
-              {msg.role === 'user' && msg.requestId && (
+              {/* 只有 AI 回复下放删除按钮，作为整组问答的选中入口；用户提问不提供删除入口 */}
+              {msg.role === 'agent' && msg.requestId && (
                 <button
                   className={styles.messageActionBtn}
-                  onClick={() => onDeleteMessage(msg.requestId!)}
-                  title="删除"
-                  style={{ color: '#94a3b8' }}
+                  onClick={() => onToggleGroup(msg.requestId!)}
+                  title={isSelected ? '取消选择' : '删除'}
+                  style={
+                    isSelected
+                      ? {
+                          color: '#ef4444',
+                          opacity: 1,
+                          background: 'var(--color-error-bg)',
+                        }
+                      : { color: '#94a3b8' }
+                  }
                 >
                   <Trash2 size={13} />
                 </button>
@@ -345,6 +410,10 @@ export default function Chat() {
   const [showThinking, setShowThinking] = useState(false)
   const [exportResultOpen, setExportResultOpen] = useState(false)
   const [exportResult, setExportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  // 批量删除：选中的对话组（key = request_id）
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set())
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
@@ -361,6 +430,85 @@ export default function Chat() {
   const questions = useMemo(() => {
     return messages.filter(m => m.role === 'user').map(m => ({ msgId: m.id, text: m.content }))
   }, [messages])
+
+  // 按位置把「用户提问 + 紧随其后的 AI 回复」配成一组问答
+  // 组 key = AI 回复的 request_id（后端按 request_id 成组删除）
+  // 用户提问按位置归属 → 勾选 AI 回复时其前面的用户提问必然联动置灰，不依赖两侧 request_id 一致
+  interface QaGroup {
+    key: string
+    userId: string | null
+    userContent: string | null
+    agentId: string
+  }
+  const qaGroups = useMemo<QaGroup[]>(() => {
+    const groups: QaGroup[] = []
+    let pendingUser: { id: string; content: string } | null = null
+    for (const m of messages) {
+      if (m.role === 'user') {
+        pendingUser = { id: m.id, content: m.content }
+      } else if (m.role === 'agent' && m.requestId) {
+        groups.push({
+          key: m.requestId,
+          userId: pendingUser?.id ?? null,
+          userContent: pendingUser?.content ?? null,
+          agentId: m.id,
+        })
+        pendingUser = null
+      }
+    }
+    return groups
+  }, [messages])
+
+  // 派生选中组 key：自动过滤已不存在的组（切换会话/删除消息后自动清理）
+  const effectiveSelectedGroups = useMemo(() => {
+    if (selectedGroupIds.size === 0) return selectedGroupIds
+    const keys = new Set(qaGroups.map(g => g.key))
+    const next = new Set<string>()
+    selectedGroupIds.forEach(id => { if (keys.has(id)) next.add(id) })
+    return next.size === selectedGroupIds.size ? selectedGroupIds : next
+  }, [selectedGroupIds, qaGroups])
+
+  // 选中组对应的消息 id（用户提问 + AI 回复），MessageList 据此判断置灰/勾选
+  const selectedMessageIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const g of qaGroups) {
+      if (!effectiveSelectedGroups.has(g.key)) continue
+      if (g.userId) ids.add(g.userId)
+      ids.add(g.agentId)
+    }
+    return ids
+  }, [qaGroups, effectiveSelectedGroups])
+
+  // 选中的提问内容（用于删除确认弹窗预览）
+  const selectedUserQuestions = useMemo(() => {
+    const list: string[] = []
+    for (const g of qaGroups) {
+      if (effectiveSelectedGroups.has(g.key) && g.userContent) list.push(g.userContent)
+    }
+    return list
+  }, [qaGroups, effectiveSelectedGroups])
+
+  // 删除确认弹窗预览：长文本 JS 截断展示"…"；对话组过多时只展示前几条 + 总数
+  const deletePreview = useMemo(() => {
+    const MAX_ITEMS = 4
+    const MAX_CHARS = 20
+    const items = selectedUserQuestions.slice(0, MAX_ITEMS).map(t =>
+      t.length > MAX_CHARS ? `${t.slice(0, MAX_CHARS)}…` : t,
+    )
+    return { items, more: selectedUserQuestions.length - items.length }
+  }, [selectedUserQuestions])
+
+  // 切换某一组问答的选中状态（点删除按钮 / 取消勾选 AI 回复都会走到这里）
+  const toggleGroup = useCallback((requestId: string) => {
+    setSelectedGroupIds(prev => {
+      const next = new Set(prev)
+      if (next.has(requestId)) next.delete(requestId)
+      else next.add(requestId)
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => setSelectedGroupIds(new Set()), [])
 
   // 滚动时更新活跃提问索引（以可视区顶部为基准）
   const handleMsgScroll = useCallback(() => {
@@ -577,24 +725,13 @@ export default function Chat() {
   // 选中历史会话 → 加载消息记录
   useEffect(() => {
     if (selectedSessionId && historyMessages.length > 0) {
-      const sessionSets = instructionSetsBySession[selectedSessionId]
-      const mapped: DisplayMessage[] = historyMessages.map((m, i) => ({
-        id: `hist_${selectedSessionId.slice(0, 8)}_${i}`,
-        role: m.role === 'assistant' ? 'agent' : 'user',
-        content: m.content,
-        timestamp: new Date(m.c_time!),
-        requestId: m.request_id,
-        // 内容匹配测试用例格式且有指令集数据 → 关联渲染
-        isTestResult: !!(sessionSets && m.role === 'assistant' && m.content.trim().startsWith('[')),
-        instructionSets: sessionSets,
-      }))
-      setMessages(mapped)
+      setMessages(mapHistoryToDisplay(historyMessages, selectedSessionId, instructionSetsBySession))
       clearThinking()
       setShowThinking(false)
       setSessionId(selectedSessionId)
       setIsTyping(false)
     }
-  }, [selectedSessionId, historyMessages, setSessionId, clearThinking])
+  }, [selectedSessionId, historyMessages, setSessionId, clearThinking, instructionSetsBySession])
 
   const { label, color, icon: StatusIcon } = statusConfig[status]
   const statusLabel = isDegraded ? '连接异常' : label
@@ -690,21 +827,69 @@ export default function Chat() {
     [handleSend],
   )
 
-  // 按 request_id 删除一组问答（同步移除用户+AI 消息）
-  const handleDeleteMessage = useCallback(
-    async (requestId: string) => {
-      setMessages(prev => prev.filter(m => m.requestId !== requestId))
-      useChatStore.getState().deleteMessage(requestId)
-      try {
-        await deleteMessageAPI(requestId)
-      } catch (e) {
-        console.warn('[Chat] 删除消息失败', e)
-        const msg = e instanceof Error ? e.message : '删除失败'
-        if (msg) toast.error(msg)
+  // 删除成功后重新拉取当前会话消息，保证与服务端一致（历史会话 + 实时会话都适用）
+  const reloadMessages = useCallback(async () => {
+    const targetSession = selectedSessionId || sessionId
+    if (!targetSession) return
+    try {
+      const res = await fetchSessionMessages(targetSession)
+      if (res.code === 1001 && res.data) {
+        setMessages(mapHistoryToDisplay(res.data, targetSession, instructionSetsBySession))
+        useChatStore.setState({ historyMessages: res.data })
+      } else if (res.code === 1001) {
+        // 删除后会话已空
+        setMessages([])
+        useChatStore.setState({ historyMessages: [] })
       }
-    },
-    [],
-  )
+    } catch {
+      // 拉取失败：保持当前本地状态
+    }
+  }, [selectedSessionId, sessionId, instructionSetsBySession])
+
+  // 二次确认后批量删除选中的问答组（对接后端 message_delete 批量接口，全或无语义）
+  const handleBatchDelete = useCallback(async () => {
+    const ids = Array.from(effectiveSelectedGroups)
+    if (ids.length === 0) return
+    setDeleting(true)
+    // 记录被移除的消息（含原位置），后端失败时回滚
+    let removed: { msg: DisplayMessage; index: number }[] = []
+    setMessages(prev => {
+      removed = prev
+        .map((m, i) => ({ msg: m, index: i }))
+        .filter(({ msg }) => selectedMessageIds.has(msg.id))
+      return prev.filter(m => !selectedMessageIds.has(m.id))
+    })
+    ids.forEach(id => useChatStore.getState().deleteMessage(id))
+    setDeleteConfirmOpen(false)
+    setSelectedGroupIds(new Set())
+
+    const rollback = () => {
+      setMessages(prev => {
+        const next = [...prev]
+        removed.forEach(({ msg, index }) => {
+          next.splice(Math.min(index, next.length), 0, msg)
+        })
+        return next
+      })
+    }
+
+    try {
+      const res = await deleteMessagesAPI(ids)
+      if (res.code === 1001) {
+        // 删除成功 → 重新拉取消息，与服务端保持一致
+        await reloadMessages()
+        toast.success(`已删除 ${ids.length} 组对话`)
+      } else {
+        rollback()
+        toast.error(res.msg || '删除失败')
+      }
+    } catch (e) {
+      rollback()
+      toast.error(e instanceof Error ? e.message : '删除失败，请稍后重试')
+    } finally {
+      setDeleting(false)
+    }
+  }, [effectiveSelectedGroups, selectedMessageIds, reloadMessages])
 
   // 点击建议问题
   const handleSuggestionClick = useCallback((text: string) => {
@@ -934,8 +1119,9 @@ export default function Chat() {
             <MessageList
               messages={messages}
               copiedId={copiedId}
+              selectedMessageIds={selectedMessageIds}
               onCopy={handleCopy}
-              onDeleteMessage={handleDeleteMessage}
+              onToggleGroup={toggleGroup}
             />
 
             {/* 思考过程区域（独立渲染，仅流式 chunk 时更新，不影响已渲染消息） */}
@@ -1040,6 +1226,18 @@ export default function Chat() {
               </div>
             ))}
           </div>
+
+          {/* 批量删除浮动操作栏 */}
+          {effectiveSelectedGroups.size > 0 && (
+            <div className={styles.batchBarWrap}>
+              <BatchDeleteBar
+                count={effectiveSelectedGroups.size}
+                onDelete={() => setDeleteConfirmOpen(true)}
+                onCancel={clearSelection}
+                deleting={deleting}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1145,6 +1343,35 @@ export default function Chat() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 批量删除二次确认弹窗 */}
+      <CommonDialog
+        open={deleteConfirmOpen}
+        onOpenChange={v => { if (!deleting) setDeleteConfirmOpen(v) }}
+        title="删除对话"
+        description={`确定要删除选中的 ${effectiveSelectedGroups.size} 组问答吗？每组包含对应的用户提问和 AI 回复，删除后不可恢复。`}
+        confirmText="删除"
+        confirmVariant="danger"
+        onConfirm={handleBatchDelete}
+        confirmDisabled={deleting}
+      >
+        <div className="max-h-[180px] overflow-y-auto flex flex-col gap-1.5 pr-1">
+          {deletePreview.items.map((text, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 min-w-0"
+            >
+              <Trash2 size={12} className="text-slate-400 shrink-0" />
+              <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{text}</span>
+            </div>
+          ))}
+          {deletePreview.more > 0 && (
+            <div className="text-xs text-slate-400 text-center py-1">
+              … 等共 {selectedUserQuestions.length} 条提问（每组包含对应的 AI 回复）
+            </div>
+          )}
+        </div>
+      </CommonDialog>
     </div>
   )
 }
