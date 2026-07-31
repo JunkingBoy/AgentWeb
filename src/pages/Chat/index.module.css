@@ -605,6 +605,46 @@
   color: var(--color-text-secondary);
 }
 
+/* ===== 批量删除：选中态 ===== */
+
+/* 用户提问被选中 → 置灰，视觉上明显被选中 */
+.bubbleUserSelected {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+/* AI 回复被选中 → 主色描边高亮 */
+.bubbleAgentSelected {
+  box-shadow: 0 0 0 1.5px var(--color-primary);
+  opacity: 0.9;
+}
+
+/* 用户提问的锁定勾选：不可点击，保持可见 */
+.userLockCheckbox {
+  opacity: 0.75;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* AI 回复的勾选：可点击取消 */
+.agentCheckbox {
+  cursor: pointer;
+}
+
+/* 批量删除浮动操作栏容器（浮在消息区底部居中） */
+.batchBarWrap {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.batchBarWrap > * {
+  pointer-events: auto;
+}
+
 /* ===== 上下文水位横幅 ===== */
 .contextBanner {
   display: flex;

@@ -17,6 +17,8 @@ interface Props {
   children: ReactNode
   confirmText?: string
   cancelText?: string
+  /** 确认按钮风格：default 品牌蓝 / danger 危险红（删除类操作） */
+  confirmVariant?: 'default' | 'danger'
   onConfirm?: () => void
   confirmDisabled?: boolean
 }
@@ -29,12 +31,13 @@ export default function CommonDialog({
   children,
   confirmText = '确认',
   cancelText = '取消',
+  confirmVariant = 'default',
   onConfirm,
   confirmDisabled,
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[92%] max-w-sm rounded-2xl p-0 gap-0 border-0 ring-0 shadow-xl bg-white overflow-hidden">
+      <DialogContent className="w-[92%] max-w-sm rounded-2xl p-0 gap-0 border-0 ring-0 shadow-xl bg-white overflow-y-auto overflow-x-hidden max-h-[85vh]">
         <div className="px-6 pt-6 pb-3">
           <DialogHeader className="p-0">
             <DialogTitle className="text-[16px] font-semibold text-slate-800">
@@ -63,7 +66,11 @@ export default function CommonDialog({
           <Button
             onClick={onConfirm}
             disabled={confirmDisabled}
-            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm h-9 px-4 shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className={
+              confirmVariant === 'danger'
+                ? 'rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm h-9 px-4 shadow-none disabled:opacity-50 disabled:cursor-not-allowed'
+                : 'rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm h-9 px-4 shadow-none disabled:opacity-50 disabled:cursor-not-allowed'
+            }
           >
             {confirmText}
           </Button>

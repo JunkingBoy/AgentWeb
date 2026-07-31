@@ -56,13 +56,24 @@ export async function deleteSessionAPI(
   return res.data
 }
 
-/** 按 request_id 删除一组问答（软删除，同时删除用户消息和 AI 回复）—— request_id 自动加密后发送 */
-export async function deleteMessageAPI(
-  requestId: string,
+/** 明文 UUID（实时会话的 request_id 格式） */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * 批量删除多组问答（对应后端 message_delete 接口，软删除，全或无语义）
+ * POST /chat/delete 请求体传参。
+ * 注意：历史会话接口返回的 request_id 已是加密值（/chat/messages 返回前已 encrypt），
+ * 直接透传避免二次加密；实时会话(WS)的 request_id 是明文 UUID，需要加密一次。
+ */
+export async function deleteMessagesAPI(
+  requestIds: string[],
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptSessionId(requestId)
-  const res = await client.delete<ApiResponse<null>>('/chat/message', {
-    params: { request_id: encryptedId },
+  const key = await getAesKey()
+  const encryptedIds = await Promise.all(
+    requestIds.map(id => (UUID_RE.test(id) ? encrypt(id, key) : id)),
+  )
+  const res = await client.post<ApiResponse<null>>('/chat/delete', {
+    request_ids: encryptedIds,
   })
   return res.data
 }
