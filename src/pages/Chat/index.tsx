@@ -417,6 +417,8 @@ export default function Chat() {
   const { isMobile: isMobileView, setIsOpen: setSidebarOpen, collapsed, setCollapsed } = useSidebarContext()
   const [contextBanner, setContextBanner] = useState<{ type: 'high_water' | 'suggest_new'; usage: ContextUsage } | null>(null)
   const currentRequestIdRef = useRef<string | null>(null)
+  /** 镜像当前消息列表，供 WS 回调内判断「取消生成后会话是否已空」 */
+  const messagesStateRef = useRef<DisplayMessage[]>([])
   const messagesRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -577,7 +579,31 @@ export default function Chat() {
           session_id?: string
           context_usage?: ContextUsage
           instruction_sets?: InstructionSetItem[]
+          cancelled?: boolean
         } | null
+
+        // 用户取消生成：后端已删除该组问答（未落库部分回复、软删用户提问）
+        // 前端丢弃部分回复并移除对应提问，保持与服务端一致
+        if (data?.cancelled) {
+          clearThinking()
+          clearContextUsage()
+          setContextBanner(null)
+          setShowThinking(false)
+          const next = messagesStateRef.current.filter(
+            m => m.requestId !== msg.request_id,
+          )
+          setMessages(next)
+          // 第一次问答即取消 → 会话已空，复位到欢迎页。
+          // 清空 session_id，避免下一次发送带着失效 session_id 把已删除的会话复活
+          if (next.length === 0) {
+            setSessionId('')
+            useChatStore.setState({ selectedSessionId: null, historyMessages: [] })
+          }
+          // 刷新侧边栏，让已删除的会话从历史列表消失
+          useChatStore.getState().loadSessions()
+          return
+        }
+
         const reply = data?.reply || msg.msg || '收到空回复'
         const instructionSets = data?.instruction_sets
         // 保存服务端返回的 session_id（新建会话时后端自动生成）
@@ -701,6 +727,11 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, isTyping, scrollToBottom])
+
+  // 镜像当前消息列表到 ref（WS 回调内需读取最新的 messages，闭包内的 messages 是初始值）
+  useEffect(() => {
+    messagesStateRef.current = messages
+  }, [messages])
 
   // 自动调整输入框高度
   useEffect(() => {
