@@ -95,9 +95,18 @@ export const useChatStore = create<ChatState>((set) => ({
     try {
       const res = await fetchSessions()
       if (res.code === 1001 && res.data) {
-        // 并行取每个会话的第一条消息作为标题 + 指令集状态
+        const ids = res.data
+
+        // 阶段 1：仅拿会话 ID 立即渲染列表（标题暂空，侧边栏显示"新对话"占位），
+        // 不再等待每个会话的 2N 个请求全部完成才展示，避免阻塞首屏
+        set({
+          sessions: ids.map(id => ({ id, title: '' })),
+          sessionsLoaded: true,
+        })
+
+        // 阶段 2：后台并行补全每个会话的标题（首条消息）+ 指令集状态，完成后原地更新
         const results = await Promise.all(
-          res.data.map(async (id) => {
+          ids.map(async (id) => {
             try {
               const [msgRes, insRes] = await Promise.all([
                 fetchSessionMessages(id),
@@ -117,7 +126,7 @@ export const useChatStore = create<ChatState>((set) => ({
           if (r.sets) instructionSetsBySession[r.id] = r.sets
         }
 
-        set({ sessions, sessionsLoaded: true, instructionSetsBySession })
+        set({ sessions, instructionSetsBySession })
       }
     } catch {
       console.warn('[chatStore] 加载会话列表失败')
