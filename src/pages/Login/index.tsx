@@ -176,7 +176,8 @@ export default function Login() {
         if (res.code === 1001 && res.data?.token) {
           localStorage.setItem('token', res.data.token)
           setSuccessMsg('登录成功')
-          setTimeout(() => { window.location.href = '/' }, 800)
+          // 用 SPA 路由跳转，避免整页刷新重新下载/执行全部 JS；300ms 仅用于展示"登录成功"提示
+          setTimeout(() => { navigate('/') }, 300)
         } else {
           setServerError(res.msg || '登录失败')
         }
