@@ -37,13 +37,14 @@ export async function fetchInstructionSets(
   return res.data
 }
 
-/** 软删除单条指令集 — instruction_id 后端返回已是加密值，直接透传 */
+/** 软删除单条指令集 — instruction_id 为服务端返回的加密值，先解密再重加密后发送 */
 export async function deleteInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
+  const encryptedId = await decryptThenEncrypt(instructionId)
   const res = await client.delete<ApiResponse<null>>(
     '/instruction/single',
-    { params: { instruction_id: instructionId } },
+    { params: { instruction_id: encryptedId } },
   )
   return res.data
 }
@@ -58,13 +59,17 @@ export interface BatchSaveResult {
 export async function batchSaveInstructionSets(
   sets: InstructionSetItem[],
 ): Promise<ApiResponse<BatchSaveResult>> {
-  // session_id / instruction_id 来自 WS 或 HTTP 均为原始 UUID，调 HTTP 接口需要 AES 加密
+  // /instruction/list 返回的 session_id / instruction_id 已是加密值，先解密再重加密
   const key = await getAesKey()
-  const body = await Promise.all(sets.map(async (s) => ({
-    session_id: await encrypt(s.session_id, key),
-    instruction_id: await encrypt(s.instruction_id, key),
-    cases: s.cases,
-  })))
+  const body = await Promise.all(sets.map(async (s) => {
+    const sessionId = await decrypt(s.session_id, key)
+    const instructionId = await decrypt(s.instruction_id, key)
+    return {
+      session_id: await encrypt(sessionId, key),
+      instruction_id: await encrypt(instructionId, key),
+      cases: s.cases,
+    }
+  }))
   const res = await client.put<ApiResponse<BatchSaveResult>>(
     '/instruction/batch',
     body,
@@ -72,14 +77,15 @@ export async function batchSaveInstructionSets(
   return res.data
 }
 
-/** 恢复已删除的指令集 — instruction_id 后端返回已是加密值，直接透传 */
+/** 恢复已删除的指令集 — instruction_id 为服务端返回的加密值，先解密再重加密后发送 */
 export async function restoreInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
+  const encryptedId = await decryptThenEncrypt(instructionId)
   const res = await client.patch<ApiResponse<null>>(
     '/instruction/restore',
     {},
-    { params: { instruction_id: instructionId } },
+    { params: { instruction_id: encryptedId } },
   )
   return res.data
 }
