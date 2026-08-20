@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react'
 import { sendResetCode, resetPassword } from '@/api/user'
-import { getAesKey } from '@/utils/keyManager'
+import { getAesKey, clearKeyCache } from '@/utils/keyManager'
 import { encrypt } from '@/utils/crypto'
 import styles from './index.module.css'
 
@@ -137,6 +137,7 @@ export default function ForgotPassword() {
 
       if (res.code === 1001) {
         setSuccessMsg('密码重置成功，请重新登录')
+        clearKeyCache()
         setTimeout(() => navigate('/login', { replace: true }), 1200)
       } else {
         setServerError(res.msg || '重置密码失败')
@@ -187,7 +188,10 @@ export default function ForgotPassword() {
   }
 
   /* ===== 回到登录 ===== */
-  const goBack = () => navigate('/login', { replace: true })
+  const goBack = () => {
+    clearKeyCache()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className={styles.page}>

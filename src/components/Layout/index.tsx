@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import Sidebar from '@/components/Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { fetchUserInfo } from '@/api/user'
+import { clearKeyCache } from '@/utils/keyManager'
 import { useIsMobile } from '@/hooks/use-mobile'
 import SidebarContext from '@/contexts/SidebarContext'
 import {
@@ -24,6 +25,7 @@ export default function Layout() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
+      clearKeyCache()
       navigate('/login', { replace: true })
       return
     }
@@ -34,6 +36,7 @@ export default function Layout() {
           setUser(res.data)
         } else {
           localStorage.removeItem('token')
+          clearKeyCache()
           navigate('/login', { replace: true })
         }
       })
