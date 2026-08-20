@@ -3,7 +3,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { updatePassword } from '@/api/user'
-import { getAesKey } from '@/utils/keyManager'
+import { getAesKey, clearKeyCache } from '@/utils/keyManager'
 import { encrypt } from '@/utils/crypto'
 import { toast } from 'sonner'
 import CommonDialog from './CommonDialog'
@@ -37,8 +37,9 @@ export default function ChangePasswordDialog({ open, onOpenChange }: Props) {
         onOpenChange(false)
         setOldPwd('')
         setNewPwd('')
-        // 清空 token 返回登录页
+        // 清空 token 与 AES 密钥缓存后返回登录页
         localStorage.removeItem('token')
+        clearKeyCache()
         window.location.href = '/login'
       } else {
         setError(res.msg || '修改失败')

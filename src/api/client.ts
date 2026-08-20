@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearKeyCache } from '@/utils/keyManager'
 
 const client = axios.create({
   baseURL: '/',
@@ -21,6 +22,7 @@ client.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('token')
+      clearKeyCache()
       window.location.href = '/login'
     }
     if (err.response?.status === 429) {

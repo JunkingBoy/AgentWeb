@@ -42,6 +42,12 @@ export async function fetchUserInfo(): Promise<ApiResponse<UserInfoData | null>>
   return res.data
 }
 
+/** 用户登出 — 通知服务端清理当前 token 的记账记录（后端尽力而为，失败不影响本地登出） */
+export async function logoutUser(): Promise<ApiResponse<null>> {
+  const res = await client.post<ApiResponse<null>>('/user/logout')
+  return res.data
+}
+
 export interface UpdateUsernameRequest {
   username: string
 }

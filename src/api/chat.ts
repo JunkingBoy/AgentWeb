@@ -62,15 +62,22 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /**
  * 批量删除多组问答（对应后端 message_delete 接口，软删除，全或无语义）
  * POST /chat/delete 请求体传参。
- * 注意：历史会话接口返回的 request_id 已是加密值（/chat/messages 返回前已 encrypt），
- * 直接透传避免二次加密；实时会话(WS)的 request_id 是明文 UUID，需要加密一次。
+ * 实时会话(WS)的 request_id 是明文 UUID，加密一次即可；
+ * 历史会话(/chat/messages)返回的 request_id 已是加密值，先解密再重加密，
+ * 避免把服务端回传的密文原样透传。
  */
 export async function deleteMessagesAPI(
   requestIds: string[],
 ): Promise<ApiResponse<null>> {
   const key = await getAesKey()
   const encryptedIds = await Promise.all(
-    requestIds.map(id => (UUID_RE.test(id) ? encrypt(id, key) : id)),
+    requestIds.map(async (id) => {
+      // 明文 UUID（WS 实时会话）→ 加密一次
+      if (UUID_RE.test(id)) return encrypt(id, key)
+      // 服务端已加密值（/chat/messages 历史消息）→ 先解密再重加密
+      const plaintext = await decrypt(id, key)
+      return encrypt(plaintext, key)
+    }),
   )
   const res = await client.post<ApiResponse<null>>('/chat/delete', {
     request_ids: encryptedIds,
