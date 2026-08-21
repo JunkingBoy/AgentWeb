@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react'
 import { sendResetCode, resetPassword } from '@/api/user'
-import { getAesKey, clearKeyCache } from '@/utils/keyManager'
-import { encrypt } from '@/utils/crypto'
+import { getRsaPublicKey, clearKeyCache } from '@/utils/keyManager'
+import { rsaEncrypt } from '@/utils/crypto'
 import styles from './index.module.css'
 
 /* ===== 步骤类型 ===== */
@@ -95,9 +95,10 @@ export default function ForgotPassword() {
     setSending(true)
 
     try {
-      const aesKey = await getAesKey()
-      const encPhone = await encrypt(phone, aesKey)
-      const encEmail = await encrypt(email, aesKey)
+      // 登录前场景:手机号/邮箱用 RSA 公钥加密提交（对齐后端 rsa_decrypt）
+      const rsaKey = await getRsaPublicKey()
+      const encPhone = await rsaEncrypt(phone, rsaKey)
+      const encEmail = await rsaEncrypt(email, rsaKey)
       const res = await sendResetCode({ phone: encPhone, email: encEmail })
 
       if (res.code === 1001) {
@@ -129,10 +130,10 @@ export default function ForgotPassword() {
     setSubmitting(true)
 
     try {
-      const aesKey = await getAesKey()
-      const encPhone = await encrypt(phone, aesKey)
-      const encEmail = await encrypt(email, aesKey)
-      const encPwd = await encrypt(password, aesKey)
+      const rsaKey = await getRsaPublicKey()
+      const encPhone = await rsaEncrypt(phone, rsaKey)
+      const encEmail = await rsaEncrypt(email, rsaKey)
+      const encPwd = await rsaEncrypt(password, rsaKey)
       const res = await resetPassword({ phone: encPhone, email: encEmail, code, new_password: encPwd })
 
       if (res.code === 1001) {
@@ -156,9 +157,9 @@ export default function ForgotPassword() {
     setSending(true)
 
     try {
-      const aesKey = await getAesKey()
-      const encPhone = await encrypt(phone, aesKey)
-      const encEmail = await encrypt(email, aesKey)
+      const rsaKey = await getRsaPublicKey()
+      const encPhone = await rsaEncrypt(phone, rsaKey)
+      const encEmail = await rsaEncrypt(email, rsaKey)
       const res = await sendResetCode({ phone: encPhone, email: encEmail })
 
       if (res.code === 1001) {

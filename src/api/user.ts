@@ -1,12 +1,12 @@
 import client from './client'
-import type { ApiResponse } from '@/types/api'
+import type { ApiResponse, LoginResponseData } from '@/types/api'
 
 export interface RegisterRequest {
-  phone: string
-  email: string
-  code: string        // 6位验证码明文
-  password: string
-  password_confirm: string
+  phone: string             // RSA 加密
+  email: string             // RSA 加密
+  code: string              // 6位验证码明文
+  password: string          // RSA 加密
+  password_confirm: string  // RSA 加密
 }
 
 /** 注册发送验证码 */
@@ -24,15 +24,19 @@ export interface UserInfoData {
   username: string
 }
 
-/** 用户注册 */
+/** 用户注册 — phone/email/password/password_confirm 均为 RSA 公钥加密后的 base64 密文 */
 export async function registerUser(data: RegisterRequest): Promise<ApiResponse<null>> {
   const res = await client.post<ApiResponse<null>>('/user/register', data)
   return res.data
 }
 
-/** 用户登录 */
-export async function loginUser(data: LoginRequest): Promise<ApiResponse<{ token: string } | null>> {
-  const res = await client.post<ApiResponse<{ token: string } | null>>('/user/login', data)
+/**
+ * 用户登录
+ * phone/password 为 RSA 公钥加密后的 base64 密文（对齐后端 rsa_decrypt）
+ * 成功响应 data: { token, key } — key 为随 token 颁发的 AES 密钥（填充格式）
+ */
+export async function loginUser(data: LoginRequest): Promise<ApiResponse<LoginResponseData | null>> {
+  const res = await client.post<ApiResponse<LoginResponseData | null>>('/user/login', data)
   return res.data
 }
 
@@ -72,18 +76,18 @@ export async function updatePassword(data: UpdatePasswordRequest): Promise<ApiRe
 /* ===== 忘记密码 ===== */
 
 export interface SendCodeRequest {
-  phone: string   // AES 加密
-  email: string   // AES 加密
+  phone: string   // RSA 加密
+  email: string   // RSA 加密
 }
 
 export interface ResetPasswordRequest {
-  phone: string       // AES 加密
-  email: string       // AES 加密
-  code: string        // 明文 6 位数字
-  new_password: string // AES 加密
+  phone: string        // RSA 加密
+  email: string        // RSA 加密
+  code: string         // 明文 6 位数字
+  new_password: string // RSA 加密
 }
 
-/** 忘记密码 Step 1：发送验证码到注册邮箱 */
+/** 忘记密码 Step 1：发送验证码到注册邮箱（phone/email RSA 加密） */
 export async function sendResetCode(data: SendCodeRequest): Promise<ApiResponse<null>> {
   const res = await client.post<ApiResponse<null>>('/user/send', data)
   return res.data

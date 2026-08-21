@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { registerUser, loginUser, sendRegisterCode } from '@/api/user'
-import { getAesKey } from '@/utils/keyManager'
-import { encrypt } from '@/utils/crypto'
+import { getRsaPublicKey, saveAesKeyFromLogin } from '@/utils/keyManager'
+import { rsaEncrypt } from '@/utils/crypto'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
 import styles from './index.module.css'
 
@@ -116,8 +116,9 @@ export default function Login() {
     setCodeSending(true)
 
     try {
-      const aesKey = await getAesKey()
-      const encryptedEmail = await encrypt(getValues('email'), aesKey)
+      // 登录前场景:邮箱用 RSA 公钥加密提交（对齐后端 rsa_decrypt）
+      const rsaKey = await getRsaPublicKey()
+      const encryptedEmail = await rsaEncrypt(getValues('email'), rsaKey)
       // 注册场景只传 email（不传 phone），后端走注册验证分支
       const res = await sendRegisterCode({ email: encryptedEmail })
 
@@ -158,13 +159,13 @@ export default function Login() {
     setSuccessMsg('')
 
     if (isLogin) {
-      // ===== 登录流程 =====
+      // ===== 登录流程（参数用 RSA 公钥加密，对齐后端 rsa_decrypt） =====
       try {
-        console.log('[Login] getting AES key...')
-        const aesKey = await getAesKey()
-        console.log('[Login] got AES key, encrypting...')
-        const encryptedPhone = await encrypt(data.phone, aesKey)
-        const encryptedPassword = await encrypt(data.password, aesKey)
+        console.log('[Login] getting RSA public key...')
+        const rsaKey = await getRsaPublicKey()
+        console.log('[Login] got RSA public key, encrypting...')
+        const encryptedPhone = await rsaEncrypt(data.phone, rsaKey)
+        const encryptedPassword = await rsaEncrypt(data.password, rsaKey)
 
         console.log('[Login] calling loginUser API...')
         const res = await loginUser({
@@ -175,6 +176,8 @@ export default function Login() {
 
         if (res.code === 1001 && res.data?.token) {
           localStorage.setItem('token', res.data.token)
+          // 后端随 token 颁发 AES 密钥，保存供登录后 WS/会话等场景加解密使用
+          if (res.data.key) saveAesKeyFromLogin(res.data.key)
           setSuccessMsg('登录成功')
           // 用 SPA 路由跳转，避免整页刷新重新下载/执行全部 JS；300ms 仅用于展示"登录成功"提示
           setTimeout(() => { navigate('/') }, 300)
@@ -187,15 +190,15 @@ export default function Login() {
       return
     }
 
-    // ===== 注册流程 =====
+    // ===== 注册流程（参数用 RSA 公钥加密，对齐后端 rsa_decrypt） =====
     console.log('[Login] registering...')
     try {
-      const aesKey = await getAesKey()
+      const rsaKey = await getRsaPublicKey()
 
-      const encryptedPhone = await encrypt(data.phone, aesKey)
-      const encryptedEmail = await encrypt((data as RegisterForm).email, aesKey)
-      const encryptedPassword = await encrypt(data.password, aesKey)
-      const encryptedConfirm = await encrypt((data as RegisterForm).password_confirm, aesKey)
+      const encryptedPhone = await rsaEncrypt(data.phone, rsaKey)
+      const encryptedEmail = await rsaEncrypt((data as RegisterForm).email, rsaKey)
+      const encryptedPassword = await rsaEncrypt(data.password, rsaKey)
+      const encryptedConfirm = await rsaEncrypt((data as RegisterForm).password_confirm, rsaKey)
 
       const res = await registerUser({
         phone: encryptedPhone,
