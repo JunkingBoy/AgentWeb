@@ -1,9 +1,13 @@
 /**
- * AES-128-CBC 加解密工具
+ * 加解密工具
  *
- * 与后端 Encry.py 对齐:
+ * AES-128-CBC（登录后业务数据，与后端 Encry.encrypt/decrypt 对齐）:
  *   encrypt → random 16B IV + AES-CBC(PKCS7) → base64(IV + ciphertext)
  *   decrypt → base64 decode → 取前 16B IV → AES-CBC 解密 → 明文
+ *
+ * RSA-OAEP（登录参数加密，与后端 Encry.rsa_encrypt/rsa_decrypt 对齐）:
+ *   公钥来自 /key/public（后端 filling_key: 原文随机填充16字符后整体base64, 附带指纹）,
+ *   加密 → RSA-OAEP(SHA-1) → base64 密文
  */
 
 /* ===== 密钥处理 ===== */
@@ -97,4 +101,57 @@ export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
+}
+
+/* ===== RSA 公钥加密（登录参数加密，与后端 Encry.rsa_encrypt 对齐） ===== */
+
+/**
+ * 从 /key/public 返回的填充公钥中还原 PEM 文本。
+ * 后端 filling_key 格式: key = base64(原文随机插入16个填充字符)（先填充后编码）
+ * 还原: raw = base64decode(key) → raw[:index] + raw[index+16:] → 原始 PEM
+ */
+export function extractRsaPublicKeyPem(filledKey: string, index: number): string {
+  const raw = atob(filledKey)
+  return raw.slice(0, index) + raw.slice(index + 16)
+}
+
+/** sha256(data) 十六进制 — 用于校验公钥指纹（后端 sha256_hash 前 8 位） */
+export async function sha256Hex(data: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(data),
+  )
+  return bytesToHex(new Uint8Array(digest))
+}
+
+/** PEM 公钥 → WebCrypto RSA-OAEP CryptoKey（SHA-1 与后端 PyCryptodome PKCS1_OAEP 默认哈希一致） */
+export async function importRsaPublicKey(pem: string): Promise<CryptoKey> {
+  const b64 = pem
+    .replace(/-----BEGIN PUBLIC KEY-----/, '')
+    .replace(/-----END PUBLIC KEY-----/, '')
+    .replace(/\s+/g, '')
+  const der = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+  return crypto.subtle.importKey(
+    'spki',
+    der,
+    { name: 'RSA-OAEP', hash: 'SHA-1' },
+    false,
+    ['encrypt'],
+  )
+}
+
+/**
+ * RSA-OAEP 加密 → base64 密文
+ * 与后端 rsa_decrypt(base64.b64decode(data)) 输入格式一致
+ */
+export async function rsaEncrypt(
+  plaintext: string,
+  key: CryptoKey,
+): Promise<string> {
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'RSA-OAEP' },
+    key,
+    new TextEncoder().encode(plaintext),
+  )
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted)))
 }

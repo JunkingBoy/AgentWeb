@@ -8,6 +8,17 @@ export interface ApiResponse<T = unknown> {
 export interface PublicKeyData {
   index: number
   key: string
+  /**
+   * RSA 公钥指纹（sha256(PEM) 前 8 位 hex）。
+   * 仅 /key/public 返回的 RSA 公钥携带；登录响应中颁发的 AES 密钥无此字段。
+   */
+  fingerprint?: string
+}
+
+/** 登录成功响应 data — 后端随 token 一起颁发 AES 密钥（填充格式） */
+export interface LoginResponseData {
+  token: string
+  key: PublicKeyData
 }
 
 /** 提示词模式 — 对应后端 PromptSchema（仅 UI 展示信息） */
