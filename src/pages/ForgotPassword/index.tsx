@@ -227,7 +227,7 @@ export default function ForgotPassword() {
                 <input
                   id="phone"
                   type="tel"
-                  placeholder="请输入手机号"
+                  placeholder="请输入您注册的手机号"
                   className={phoneErr ? styles.inputError : ''}
                   value={phone}
                   onChange={e => {
@@ -245,7 +245,7 @@ export default function ForgotPassword() {
                 <input
                   id="email"
                   type="email"
-                  placeholder="请输入邮箱地址"
+                  placeholder="请输入手机号绑定的邮箱（QQ或网易邮箱）"
                   className={emailErr ? styles.inputError : ''}
                   value={email}
                   onChange={e => {
