@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { encrypt, decrypt } from '@/utils/crypto'
-import { getAesKey } from '@/utils/keyManager'
+import { getAesKey, SessionExpiredError } from '@/utils/keyManager'
+import { handleSessionExpired } from '@/utils/session'
 
 /* ===== 类型定义 ===== */
 
@@ -159,6 +160,9 @@ export function useWebSocket() {
     } catch (e) {
       console.error('[WS] 获取加密密钥失败:', e)
       updateInfo({ status: 'disconnected', error: '获取加密密钥失败' })
+      // 密钥未颁发 = 会话已失效(如长时间未访问后 sessionStorage 中的密钥丢失)
+      // → 跳转登录页,与 HTTP 401 拦截器的行为保持一致
+      if (e instanceof SessionExpiredError) handleSessionExpired()
       return
     }
 
@@ -167,6 +171,8 @@ export function useWebSocket() {
     if (!token) {
       console.error('[WS] 未找到认证令牌')
       updateInfo({ status: 'disconnected', error: '未登录，无法连接' })
+      // 无 token = 未登录 → 跳转登录页
+      handleSessionExpired()
       return
     }
 
