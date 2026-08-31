@@ -53,6 +53,12 @@
   /* ===== 滚动条 ===== */
   --color-scrollbar-thumb: #e2e8f0;
   --color-scrollbar-thumb-hover: #cbd5e1;
+
+  /* ===== Toast / Popover（sonner、dropdown 默认配色依赖） ===== */
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --border: #e2e8f0;
+  --radius: 10px;
 }
 
 /* ===== 暗色模式（class 策略，由 next-themes 控制） ===== */
@@ -103,4 +109,9 @@
   /* ===== 滚动条 ===== */
   --color-scrollbar-thumb: #1e293b;
   --color-scrollbar-thumb-hover: #334155;
+
+  /* ===== Toast / Popover（暗色） ===== */
+  --popover: #1e293b;
+  --popover-foreground: #f1f5f9;
+  --border: #334155;
 }
