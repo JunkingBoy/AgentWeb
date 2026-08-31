@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { clearKeyCache } from '@/utils/keyManager'
+import { handleSessionExpired } from '@/utils/session'
 
 const client = axios.create({
   baseURL: '/',
@@ -21,9 +21,7 @@ client.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('token')
-      clearKeyCache()
-      window.location.href = '/login'
+      handleSessionExpired()
     }
     if (err.response?.status === 429) {
       const data = err.response?.data

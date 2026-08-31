@@ -12,6 +12,17 @@ const STORAGE_KEY = 'aes_key_data'
 
 let cachedAesKey: Promise<CryptoKey> | null = null
 
+/**
+ * 会话已失效的专用错误(WS 建立连接时 AES 密钥缺失/未颁发)。
+ * 捕获方据此执行"跳转登录页"等会话失效处理,而不是当作普通网络错误。
+ */
+export class SessionExpiredError extends Error {
+  constructor(message = '加密密钥未颁发，请重新登录') {
+    super(message)
+    this.name = 'SessionExpiredError'
+  }
+}
+
 /* ===== AES 密钥（登录成功后随 token 由后端颁发） ===== */
 
 /** 从 sessionStorage 恢复原始接口数据（填充密钥+索引），不存明文hex */
@@ -49,7 +60,7 @@ export async function getAesKey(): Promise<CryptoKey> {
     cachedAesKey = (async () => {
       const stored = loadKeyDataFromSession()
       if (!stored) {
-        throw new Error('加密密钥未颁发，请重新登录')
+        throw new SessionExpiredError()
       }
       return hexKeyToCryptoKey(extractAesKey(stored.key, stored.index))
     })().catch(e => {
