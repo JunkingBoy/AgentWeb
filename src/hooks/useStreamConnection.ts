@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { decrypt } from '@/utils/crypto'
-import { getAesKey } from '@/utils/keyManager'
+import { getAesKey, SessionExpiredError } from '@/utils/keyManager'
+import { handleSessionExpired } from '@/utils/session'
 
 /* ===== 类型定义 ===== */
 
@@ -62,6 +63,8 @@ export function useStreamConnection() {
       keyRef.current = await getAesKey()
     } catch (e) {
       console.error('[StreamWS] 获取加密密钥失败:', e)
+      // 密钥未颁发 = 会话已失效 → 跳转登录页(与主 WS / HTTP 401 行为一致)
+      if (e instanceof SessionExpiredError) handleSessionExpired()
       return
     }
 
