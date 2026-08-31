@@ -715,7 +715,7 @@
   background: var(--color-input-bg);
   border: 1px solid var(--color-input-border);
   border-radius: 14px;
-  padding: 8px 6px 8px 18px;
+  padding: 8px 6px 8px 6px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -837,6 +837,162 @@
   color: var(--color-text-muted);
   padding: 4px 4px 0;
   user-select: none;
+}
+
+/* ===== 上传文件 chips（mock 效果，未对接后端） ===== */
+.fileChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 4px 10px;
+}
+
+.fileChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 340px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  background: var(--color-input-bg);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.fileChipUploading {
+  opacity: 0.7;
+}
+
+.fileChipError {
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+}
+
+.fileChipIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.fileChipError .fileChipIcon {
+  color: var(--color-error);
+}
+
+.fileChipBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fileChipName {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.fileChipMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.fileChipUploadingText {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fileChipRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+
+.fileChipRemove:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-error);
+}
+
+/* 回形针按钮：已有待发送文件时高亮 */
+.inputActionBtnActive {
+  color: var(--color-primary);
+}
+
+/* ===== 回形针上传菜单（可拓展，复用 dropdown 组件） ===== */
+.uploadMenu {
+  min-width: 210px;
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.uploadOptionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.uploadOptionItem:hover,
+.uploadOptionItem[data-highlighted] {
+  background: var(--color-bg-hover);
+  outline: none;
+}
+
+.uploadOptionLabel {
+  white-space: nowrap;
+}
+
+/* 悬浮菜单项时右侧出现支持的文件类型提示 */
+.uploadOptionHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none;
+}
+
+.uploadOptionItem:hover .uploadOptionHint,
+.uploadOptionItem[data-highlighted] .uploadOptionHint {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 已有文件时菜单项置灰（保留可点，点击后 toast 提示原因） */
+.uploadOptionLocked {
+  opacity: 0.55;
+}
+
+.uploadOptionLocked .uploadOptionHint {
+  opacity: 1;
+  transform: none;
+  color: var(--color-warning);
 }
 
 /* ===== 打字指示器 ===== */

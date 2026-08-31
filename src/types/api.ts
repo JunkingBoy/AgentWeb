@@ -60,3 +60,23 @@ export interface InstructionSetItem {
   c_time?: string
   u_time?: string
 }
+
+/** 单文件上传成功响应项（POST /files/upload data.files 元素，对应后端 FileUploadResponse） */
+export interface FileUploadResponse {
+  /** 会话密钥 AES 密文（64 位 hex 内容哈希加密而来），后续 chat.send 的 file_id 字段携带 */
+  file_id: string
+  /** 原始文件名（清洗后，仅展示用途） */
+  file_name: string
+  /** 文件大小（字节） */
+  size: number
+  /** 扩展名，不带点（docx / md） */
+  extension: string
+  /** TTL 过期时间戳（毫秒），过期后文件与 file_id 被清理 */
+  expired_at?: number | null
+}
+
+/** 文件上传批量响应（POST /files/upload data，对应后端 FileUploadBatchResponse） */
+export interface FileUploadBatchResponse {
+  files: FileUploadResponse[]
+  total: number
+}

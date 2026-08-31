@@ -23,16 +23,26 @@ import {
   Search,
   Plus,
   PanelLeft,
+  Loader2,
+  X,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
 import { useChatStore } from '@/stores/chatStore'
 import { deleteMessagesAPI, fetchSessionMessages, stopStreamAPI, type ChatMessage } from '@/api/chat'
+import { uploadFile, cancelUploads } from '@/api/files'
 import { exportInstructionSets } from '@/api/instruction'
 import { toast } from 'sonner'
 import type { ContextUsage, InstructionSetItem } from '@/types/api'
 import ModeSelector from '@/components/common/ModeSelector'
 import TestCaseView from '@/components/common/TestCaseCard'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
 import BatchDeleteBar from '@/components/common/BatchDeleteBar'
 import CommonDialog from '@/components/common/CommonDialog'
@@ -63,6 +73,49 @@ interface DisplayMessage {
   /** 指令集列表（test 模式独有） */
   instructionSets?: InstructionSetItem[]
 }
+
+/** 待发送/已上传文件 chip（已对接 POST /files/upload） */
+interface UploadChip {
+  id: string
+  name: string
+  size: number
+  status: 'uploading' | 'done' | 'error'
+  errorMsg?: string
+  /** 后端返回的加密 file_id（后续 chat.send 的 file_id 字段携带） */
+  fileId?: string
+  /** 后端返回的 TTL 过期时间戳（毫秒） */
+  expiredAt?: number
+}
+
+/** 字节数 → 人类可读大小 */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/** 与后端白名单对齐：docx / md，大小 ≤ 10MB */
+const ALLOWED_EXTENSIONS = ['docx', 'md']
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+/** 回形针菜单的上传选项（可拓展：未来加"上传图片"等只需在此追加一项） */
+interface UploadOption {
+  key: string
+  label: string
+  accept: string
+  hint: string
+  icon: typeof FileText
+}
+
+const UPLOAD_OPTIONS: UploadOption[] = [
+  {
+    key: 'document',
+    label: '上传文档',
+    accept: '.docx,.md',
+    hint: '支持 docx / md，≤10MB',
+    icon: FileText,
+  },
+]
 
 /** 把后端历史消息（ChatMessage[]）映射为前端展示消息（DisplayMessage[]） */
 function mapHistoryToDisplay(
@@ -406,6 +459,10 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  // 文件上传：待发送文件 chips + 上传菜单开关
+  const [fileChips, setFileChips] = useState<UploadChip[]>([])
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
   const [exportResultOpen, setExportResultOpen] = useState(false)
@@ -782,6 +839,115 @@ export default function Chat() {
     }
   }, [])
 
+  // 点击回形针菜单项 → 按选项设置 accept 后唤起文件选择
+  const handleUploadOption = useCallback((opt: UploadOption) => {
+    if (fileInputRef.current) fileInputRef.current.accept = opt.accept
+    fileInputRef.current?.click()
+  }, [])
+
+  // 打开/关闭上传菜单：已有文件时点击回形针 → 直接弹明显提示，不打开菜单
+  const handleUploadMenuChange = useCallback((open: boolean) => {
+    if (open && fileChips.length > 0) {
+      toast.warning(`已上传文档「${fileChips[0].name}」，当前会话仅支持一个文件，请先移除后再上传`, { duration: 4000 })
+      return // 不打开菜单
+    }
+    setUploadMenuOpen(open)
+  }, [fileChips])
+
+  // 点击菜单项：已有文件时直接提示，不打开文件选择框
+  const handleUploadOptionSelect = useCallback((opt: UploadOption) => {
+    if (fileChips.length > 0) {
+      toast.warning(`已上传文档「${fileChips[0].name}」，请先移除后再上传新文件`, { duration: 4000 })
+      return
+    }
+    handleUploadOption(opt)
+  }, [fileChips, handleUploadOption])
+
+  // 选择文件后：单文件限制 → 预校验 → 调用 POST /files/upload → 更新 chip 状态
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // 允许重复选择同一文件
+    if (!file) return
+
+    // 后端一次会话仅接收一个文件：必须先移除当前文件才能再次上传
+    if (fileChips.length > 0) {
+      toast.warning(`已上传文档「${fileChips[0].name}」，当前会话仅支持一个文件，请先移除后再上传`, { duration: 4000 })
+      return
+    }
+
+    // 前端预校验（与后端白名单对齐），避免无效请求
+    const ext = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : ''
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      toast.error('仅支持 docx / md 文件')
+      return
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast.error(`文件大小超过 ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB 限制`)
+      return
+    }
+
+    const chip: UploadChip = {
+      id: `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name,
+      size: file.size,
+      status: 'uploading',
+    }
+    setFileChips(prev => [...prev, chip])
+
+    // 调用后端上传接口（业务失败后端也返回 HTTP 200，走 res.code !== 1001 分支）
+    try {
+      const res = await uploadFile(file)
+      const uploaded = res.code === 1001 ? res.data?.files?.[0] : undefined
+      if (uploaded) {
+        // 用后端返回的清洗后文件名 / 大小 / 加密 file_id 更新 chip
+        setFileChips(prev =>
+          prev.map(c =>
+            c.id === chip.id
+              ? {
+                  ...c,
+                  status: 'done',
+                  name: uploaded.file_name,
+                  size: uploaded.size,
+                  fileId: uploaded.file_id,
+                  expiredAt: uploaded.expired_at ?? undefined,
+                }
+              : c,
+          ),
+        )
+      } else {
+        setFileChips(prev =>
+          prev.map(c => (c.id === chip.id ? { ...c, status: 'error', errorMsg: res.msg || '上传失败' } : c)),
+        )
+      }
+    } catch (err) {
+      setFileChips(prev =>
+        prev.map(c =>
+          c.id === chip.id
+            ? { ...c, status: 'error', errorMsg: err instanceof Error ? err.message : '上传失败，请稍后重试' }
+            : c,
+        ),
+      )
+    }
+  }, [fileChips])
+
+  // 移除文件 chip：乐观移除本地；已上传成功的文件同时调用后端取消接口删除服务端暂存
+  const removeFileChip = useCallback((chip: UploadChip) => {
+    setFileChips(prev => prev.filter(c => c.id !== chip.id))
+
+    // 已上传成功（持有加密 file_id）→ 调用 POST /files/cancel 删除服务端暂存文件与 meta
+    if (chip.status === 'done' && chip.fileId) {
+      cancelUploads([chip.fileId])
+        .then(res => {
+          if (res.code !== 1001) {
+            toast.warning(res.msg || '服务端文件清理失败，将在 1 小时后自动过期', { duration: 4000 })
+          }
+        })
+        .catch(() => {
+          toast.warning('服务端文件清理失败，将在 1 小时后自动过期', { duration: 4000 })
+        })
+    }
+  }, [])
+
   // 发送消息
   const handleSend = useCallback(() => {
     const text = input.trim()
@@ -803,6 +969,8 @@ export default function Chat() {
     }
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    // 文件随消息发出，清空待发送列表（file_id 已随后端上传完成；chat.send 消费 file_id 待后端支持）
+    setFileChips([])
     setIsTyping(true)
 
     if (wsReady) {
@@ -1294,7 +1462,80 @@ export default function Chat() {
 
       {/* ===== 输入区域 ===== */}
       <div className={styles.inputArea}>
+        {/* 已选文件 chips（mock 上传效果，未对接后端） */}
+        {fileChips.length > 0 && (
+          <div className={styles.fileChips}>
+            {fileChips.map(chip => (
+              <div
+                key={chip.id}
+                className={cn(
+                  styles.fileChip,
+                  chip.status === 'uploading' && styles.fileChipUploading,
+                  chip.status === 'error' && styles.fileChipError,
+                )}
+              >
+                <span className={styles.fileChipIcon}>
+                  <Paperclip size={12} />
+                </span>
+                <span className={styles.fileChipBody}>
+                  <span className={styles.fileChipName} title={chip.name}>
+                    {chip.name}
+                  </span>
+                  <span className={styles.fileChipMeta}>
+                    {chip.status === 'uploading' ? (
+                      <span className={styles.fileChipUploadingText}>
+                        <Loader2 size={11} className={styles.spin} />
+                        上传中…
+                      </span>
+                    ) : chip.status === 'error' ? (
+                      chip.errorMsg || '上传失败'
+                    ) : (
+                      `${formatSize(chip.size)} · 已就绪`
+                    )}
+                  </span>
+                </span>
+                <button
+                  className={styles.fileChipRemove}
+                  onClick={() => removeFileChip(chip)}
+                  title="移除文件"
+                  aria-label="移除文件"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className={styles.inputWrapper}>
+          {/* 左侧：回形针 → 上传菜单（可拓展，未来可加"上传图片"等） */}
+          <DropdownMenu open={uploadMenuOpen} onOpenChange={handleUploadMenuChange}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(styles.inputActionBtn, fileChips.length > 0 && styles.inputActionBtnActive)}
+                title={fileChips.length > 0 ? '已有一个待发送文件，移除后可重新上传' : '添加内容'}
+                disabled={isTyping}
+              >
+                <Paperclip size={16} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className={styles.uploadMenu}>
+              {UPLOAD_OPTIONS.map(opt => (
+                <DropdownMenuItem
+                  key={opt.key}
+                  className={cn(styles.uploadOptionItem, fileChips.length > 0 && styles.uploadOptionLocked)}
+                  onSelect={() => handleUploadOptionSelect(opt)}
+                >
+                  <opt.icon size={14} />
+                  <span className={styles.uploadOptionLabel}>{opt.label}</span>
+                  <span className={styles.uploadOptionHint}>
+                    {fileChips.length > 0 ? '已有一个文件，请先移除' : opt.hint}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <textarea
             ref={inputRef}
             className={styles.inputField}
@@ -1306,13 +1547,6 @@ export default function Chat() {
             disabled={isTyping}
           />
           <div className={styles.inputActions}>
-            <button
-              className={cn(styles.inputActionBtn, styles.hidden)}
-              title="上传文件"
-              disabled={isTyping}
-            >
-              <Paperclip size={17} />
-            </button>
             {isTyping ? (
               <button
                 className={styles.stopBtn}
@@ -1342,6 +1576,14 @@ export default function Chat() {
               ? '已连接到服务端 · Enter 发送 · Shift+Enter 换行'
               : '服务端未连接 · 本地模式 · Enter 发送 · Shift+Enter 换行'}
         </div>
+        {/* 隐藏的文件选择控件（由回形针按钮触发） */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".docx,.md"
+          className={styles.hidden}
+          onChange={handleFileChange}
+        />
       </div>
 
       {/* 导出结果弹窗 */}
