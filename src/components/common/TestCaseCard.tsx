@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, useEffect, useCallback } from 'react'
-import { Trash2, RotateCcw, Pencil, X, Check, Save } from 'lucide-react'
+import { Trash2, RotateCcw, Pencil, X, Check, Save, Download } from 'lucide-react'
 import { toast } from 'sonner'
-import { deleteInstructionSet, restoreInstructionSet, batchSaveInstructionSets } from '@/api/instruction'
+import { deleteInstructionSet, restoreInstructionSet, batchSaveInstructionSets, exportInstructionSetsByRequest, ExportError } from '@/api/instruction'
 import type { TestCaseData, InstructionSetItem } from '@/types/api'
 import styles from './TestCaseCard.module.css'
 
@@ -221,11 +221,14 @@ const TestCaseItem = memo(function TestCaseItem({ item, index, onDeleted, onRest
 
 interface TestCaseViewProps {
   instructionSets: InstructionSetItem[]
+  /** 本次对话的 request_id，用于按请求导出用例（无 id 时隐藏导出按钮） */
+  requestId?: string
 }
 
-export default function TestCaseView({ instructionSets }: TestCaseViewProps) {
+export default function TestCaseView({ instructionSets, requestId }: TestCaseViewProps) {
   const [localSets, setLocalSets] = useState(instructionSets)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(true)
 
@@ -281,11 +284,29 @@ export default function TestCaseView({ instructionSets }: TestCaseViewProps) {
     setTimeout(() => { setSaveMsg(''); setSaveSuccess(true) }, 3000)
   }, [localSets])
 
+  // 导出本次问答组用例（按 request_id 调后端 GET /instruction/export/request）
+  const handleExportRequest = useCallback(async () => {
+    if (!requestId || exporting) return
+    setExporting(true)
+    try {
+      await exportInstructionSetsByRequest(requestId)
+      toast.success('导出成功，文件已开始下载')
+    } catch (e) {
+      if (e instanceof ExportError) {
+        toast.error(e.message || '导出失败')
+      } else {
+        toast.error('网络异常，导出失败')
+      }
+    } finally {
+      setExporting(false)
+    }
+  }, [requestId, exporting])
+
   if (localSets.length === 0) return null
 
   return (
     <div className={styles.container}>
-      {/* 顶部栏：统计 + 保存全部按钮 */}
+      {/* 顶部栏：统计 + 导出本次对话 + 保存全部按钮 */}
       <div className={styles.topBar}>
         <div className={styles.summary}>
           共 <strong>{activeSets.length}</strong> 条测试用例
@@ -293,14 +314,27 @@ export default function TestCaseView({ instructionSets }: TestCaseViewProps) {
             <span className={styles.deletedCount}>, {deletedSets.length} 条已删除</span>
           )}
         </div>
-        <button
-          className={styles.saveAllBtn}
-          onClick={handleSaveAll}
-          disabled={saving}
-        >
-          <Save size={14} />
-          {saving ? '保存中...' : '保存全部'}
-        </button>
+        <div className={styles.topBarActions}>
+          {requestId && (
+            <button
+              className={styles.exportReqBtn}
+              onClick={handleExportRequest}
+              disabled={exporting}
+              title="导出本次对话生成的测试用例（Excel）"
+            >
+              <Download size={14} />
+              {exporting ? '导出中...' : '导出本轮用例'}
+            </button>
+          )}
+          <button
+            className={styles.saveAllBtn}
+            onClick={handleSaveAll}
+            disabled={saving}
+          >
+            <Save size={14} />
+            {saving ? '保存中...' : '保存全部'}
+          </button>
+        </div>
       </div>
 
       {saveMsg && (

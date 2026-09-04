@@ -10,8 +10,6 @@ import {
   Paperclip,
   Copy,
   CheckCheck,
-  Bot,
-  User,
   Wifi,
   WifiOff,
   RefreshCw,
@@ -28,25 +26,17 @@ import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
 import { useChatStore } from '@/stores/chatStore'
 import { deleteMessagesAPI, fetchSessionMessages, stopStreamAPI, type ChatMessage } from '@/api/chat'
-import { exportInstructionSets } from '@/api/instruction'
+import { exportInstructionSets, ExportError } from '@/api/instruction'
 import { toast } from 'sonner'
 import type { ContextUsage, InstructionSetItem } from '@/types/api'
 import ModeSelector from '@/components/common/ModeSelector'
 import TestCaseView from '@/components/common/TestCaseCard'
 import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
+import ChatAvatar from './ChatAvatar'
 import BatchDeleteBar from '@/components/common/BatchDeleteBar'
 import CommonDialog from '@/components/common/CommonDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSidebarContext } from '@/contexts/SidebarContext'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import styles from './index.module.css'
 
 /* ===== 类型定义 ===== */
@@ -267,13 +257,7 @@ const MessageList = memo(function MessageList({
               : styles.messageRowAgent
           }`}
         >
-          <div
-            className={`${styles.messageAvatar} ${
-              msg.role === 'user' ? styles.avatarUser : styles.avatarAgent
-            }`}
-          >
-            {msg.role === 'user' ? <User size={15} /> : <Bot size={15} />}
-          </div>
+          <ChatAvatar role={msg.role} />
           <div className={styles.messageBody}>
             <div
               className={`${styles.messageBubble} ${
@@ -291,7 +275,10 @@ const MessageList = memo(function MessageList({
               {msg.role === 'user' ? (
                 <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
               ) : msg.isTestResult && msg.instructionSets ? (
-                <TestCaseView instructionSets={msg.instructionSets} />
+                <TestCaseView
+                  instructionSets={msg.instructionSets}
+                  requestId={msg.requestId}
+                />
               ) : (
                 <Markdown
                   remarkPlugins={[remarkGfm]}
@@ -308,7 +295,7 @@ const MessageList = memo(function MessageList({
           <div
             className={styles.messageMeta}
             style={{
-              marginLeft: msg.role === 'agent' ? 42 : 0,
+              marginLeft: msg.role === 'agent' ? 44 : 0,
               justifyContent:
                 msg.role === 'user' ? 'flex-end' : 'flex-start',
             }}
@@ -408,8 +395,6 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
-  const [exportResultOpen, setExportResultOpen] = useState(false)
-  const [exportResult, setExportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   // 批量删除：选中的对话组（key = request_id）
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set())
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -1044,11 +1029,9 @@ export default function Chat() {
               if (!sessionId) return
               try {
                 await exportInstructionSets(sessionId)
-                setExportResult({ type: 'success', message: '指令集导出成功，文件已开始下载' })
-                setExportResultOpen(true)
+                toast.success('导出成功，文件已开始下载')
               } catch (e) {
-                setExportResult({ type: 'error', message: e instanceof Error ? e.message : '导出失败' })
-                setExportResultOpen(true)
+                toast.error(e instanceof ExportError ? e.message : '网络异常，导出失败')
               }
             }}
             title={!sessionId || !instructionSetsBySession[sessionId]?.length ? '当前会话没有指令集数据，无法导出' : '导出当前会话的指令集为 Excel'}
@@ -1222,9 +1205,7 @@ export default function Chat() {
 
             {isTyping && (
               <div className={styles.typingIndicator}>
-                <div className={styles.typingAvatar}>
-                  <Bot size={15} color="white" />
-                </div>
+                <ChatAvatar role="agent" thinking />
                 <div className={styles.typingBubble}>
                   <span className={styles.typingDot} />
                   <span className={styles.typingDot} />
@@ -1343,37 +1324,6 @@ export default function Chat() {
               : '服务端未连接 · 本地模式 · Enter 发送 · Shift+Enter 换行'}
         </div>
       </div>
-
-      {/* 导出结果弹窗 */}
-      <Dialog open={exportResultOpen} onOpenChange={setExportResultOpen}>
-        <DialogContent className="w-[92%] max-w-sm rounded-2xl p-0 gap-0 border-0 ring-0 shadow-xl bg-white overflow-hidden" showCloseButton={false}>
-          <div className="px-6 pt-6 pb-3">
-            <DialogHeader className="p-0">
-              <DialogTitle className="text-[16px] font-semibold text-slate-800">
-                <span className="flex items-center gap-2">
-                  {exportResult?.type === 'success' ? (
-                    <span className="text-green-600">✓</span>
-                  ) : (
-                    <span className="text-red-500">✗</span>
-                  )}
-                  导出{exportResult?.type === 'success' ? '成功' : '失败'}
-                </span>
-              </DialogTitle>
-              <DialogDescription className="text-sm text-slate-500 mt-1">
-                {exportResult?.message}
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-          <DialogFooter className="px-6 py-4 flex-row justify-end gap-2.5 border-0 bg-transparent -mx-0 -mb-0 rounded-none">
-            <Button
-              onClick={() => setExportResultOpen(false)}
-              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm h-9 px-4 shadow-none"
-            >
-              知道了
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* 批量删除二次确认弹窗 */}
       <CommonDialog

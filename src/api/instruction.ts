@@ -100,15 +100,31 @@ export class ExportError extends Error {
   }
 }
 
-/** 导出指令集为 Excel 文件（触发浏览器下载） */
-export async function exportInstructionSets(sessionId: string): Promise<void> {
-  const encryptedId = await ensureEncrypted(sessionId)
-  const token = localStorage.getItem('token')
+/** 明文 request_id（WS 实时会话），带横线或不带横线均视为明文 UUID */
+const PLAIN_REQUEST_ID_RE =
+  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i
 
-  const response = await fetch(`/instruction/export?session_id=${encodeURIComponent(encryptedId)}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+/**
+ * request_id 规范化：明文 UUID → 直接加密一次；
+ * 已加密值（/chat/messages 历史消息返回的密文）→ 先解密再重加密。
+ * 与 chat.ts 的删除接口处理保持一致。
+ */
+async function ensureEncryptedRequestId(requestId: string): Promise<string> {
+  if (PLAIN_REQUEST_ID_RE.test(requestId)) {
+    const key = await getAesKey()
+    return encrypt(requestId, key)
+  }
+  return decryptThenEncrypt(requestId)
+}
 
+/**
+ * 处理导出响应：HTTP 失败 / 后端 JSON 失败 → 抛 ExportError；
+ * 成功（Excel Blob）→ 解析 Content-Disposition 文件名并触发浏览器下载
+ */
+async function resolveExportResponse(
+  response: Response,
+  fallbackName: string,
+): Promise<void> {
   if (!response.ok) {
     const err = await response.json().catch(() => ({ code: 0, msg: '导出请求失败' }))
     throw new ExportError(err.code || 0, err.msg || '导出失败')
@@ -131,7 +147,7 @@ export async function exportInstructionSets(sessionId: string): Promise<void> {
       .slice(1)
       .join('=')
       ?.replace(/["']/g, '')
-      ?.trim() || `test_cases_${Date.now()}.xlsx`
+      ?.trim() || fallbackName
 
   // 触发下载
   const blob = await response.blob()
@@ -143,4 +159,33 @@ export async function exportInstructionSets(sessionId: string): Promise<void> {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+/** 导出指令集为 Excel 文件（触发浏览器下载） */
+export async function exportInstructionSets(sessionId: string): Promise<void> {
+  const encryptedId = await ensureEncrypted(sessionId)
+  const token = localStorage.getItem('token')
+
+  const response = await fetch(`/instruction/export/session?session_id=${encodeURIComponent(encryptedId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+
+  await resolveExportResponse(response, `test_cases_${Date.now()}.xlsx`)
+}
+
+/**
+ * 按 request_id 导出「本次问答组」生成的测试用例 Excel（触发浏览器下载）
+ * 对应后端 GET /instruction/export/request（限频 1 次 / 5 秒）
+ */
+export async function exportInstructionSetsByRequest(
+  requestId: string,
+): Promise<void> {
+  const encryptedId = await ensureEncryptedRequestId(requestId)
+  const token = localStorage.getItem('token')
+
+  const response = await fetch(`/instruction/export/request?request_id=${encodeURIComponent(encryptedId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+
+  await resolveExportResponse(response, `test_cases_request_${Date.now()}.xlsx`)
 }
