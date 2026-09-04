@@ -501,32 +501,94 @@
   align-self: flex-start;
 }
 
-/* 头像 */
-.messageAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+/* 头像 — 用户圆形字母头像 / AI 品牌神经网络圆角方块 */
+.chatAvatar {
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: white;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.2s;
+  position: relative;
+  user-select: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-.messageRow:first-child .messageAvatar {
-  opacity: 1;
+.chatAvatar:hover {
+  transform: scale(1.08);
 }
 
+/* 用户：首字母彩色圆（色值按用户名哈希确定，与侧边栏一致） */
 .avatarUser {
+  border-radius: 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
   background: var(--color-primary);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.18),
+    0 2px 5px rgba(15, 23, 42, 0.15);
 }
 
+.avatarUser:hover {
+  filter: brightness(1.08);
+}
+
+.avatarLetter {
+  line-height: 1;
+  letter-spacing: 0.2px;
+}
+
+/* AI：品牌渐变圆角方块 + 神经网络小图标 */
 .avatarAgent {
-  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  border-radius: 11px;
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 60%, #8b5cf6 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 3px 8px rgba(99, 102, 241, 0.28);
+}
+
+.avatarNeural {
+  width: 68%;
+  height: 68%;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  /* 始终缓慢顺时针旋转，呼应欢迎页 NeuralNetworkIcon 的自转动画 */
+  animation: avatarNeuralSpin 6s linear infinite;
+}
+
+@keyframes avatarNeuralSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* AI 正在生成：柔和脉冲光晕 */
+.avatarAgentThinking {
+  animation: avatarAgentPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes avatarAgentPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 3px 8px rgba(99, 102, 241, 0.28);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 0 0 5px rgba(99, 102, 241, 0.16),
+      0 3px 16px rgba(99, 102, 241, 0.45);
+  }
 }
 
 /* 消息内容区域 */
@@ -846,17 +908,6 @@
   gap: 10px;
   padding: 4px 24px;
   margin-bottom: 4px;
-}
-
-.typingAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .typingBubble {

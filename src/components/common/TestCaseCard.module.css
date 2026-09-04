@@ -32,6 +32,50 @@
   margin-left: 4px;
 }
 
+/* 顶部右侧按钮组：导出本次对话 + 保存全部 */
+.topBarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 导出本次对话用例（次级按钮，位于保存全部左侧） */
+.exportReqBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+
+.exportReqBtn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.exportReqBtn:active {
+  transform: scale(0.96);
+}
+
+.exportReqBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.exportReqBtn:disabled:active {
+  transform: none;
+}
+
 .saveAllBtn {
   display: inline-flex;
   align-items: center;
