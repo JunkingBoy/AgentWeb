@@ -63,7 +63,11 @@ export interface InstructionSetItem {
 
 /** 单文件上传成功响应项（POST /files/upload data.files 元素，对应后端 FileUploadResponse） */
 export interface FileUploadResponse {
-  /** 会话密钥 AES 密文（64 位 hex 内容哈希加密而来），后续 chat.send 的 file_id 字段携带 */
+  /**
+   * 会话密钥 AES 密文（base64(16B IV + ciphertext)）
+   * —— 发给 chat.send 前须解密还原为**明文**（64 位小写 hex）填入 file_ids；
+   *    调 /files/cancel 前须解密后**重新加密**（新 IV 绕开防重放账本）
+   */
   file_id: string
   /** 原始文件名（清洗后，仅展示用途） */
   file_name: string

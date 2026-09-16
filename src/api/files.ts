@@ -12,6 +12,8 @@ import { getAesKey } from '@/utils/keyManager'
  *   axios 的 transformRequest 会把 FormData JSON 序列化（文件丢失），后端报
  *   `1002 缺少必要字段`。置空后 FormData 原样发送，浏览器自动生成 multipart boundary
  * - 业务失败（如类型/大小超限）后端也返回 HTTP 200，通过 res.code !== 1001 + res.msg 判断
+ * - 响应 files[].file_id 为**加密密文**：发给 chat.send 前须经 decryptFileId 还原明文，
+ *   调 /files/cancel 前须重新加密（两条路径用途不同，见各自注释）
  */
 export async function uploadFile(
   file: File,
@@ -26,6 +28,30 @@ export async function uploadFile(
     },
   )
   return res.data
+}
+
+/** 明文 file_id 形态：64 位小写 hex（sha256 内容哈希），与后端 _is_valid_file_id 校验一致 */
+const FILE_ID_PLAIN_RE = /^[0-9a-f]{64}$/
+
+/**
+ * 上传响应下发的加密 file_id → 明文 file_id（64 位小写 hex）
+ *
+ * ⚠️ chat.send 的 file_ids 字段要求**明文**（后端 StandardChatEventTemplate.file_ids
+ *    校验 64 位小写 hex），不可把上传响应的密文直接透传。
+ * - 与 /files/cancel 的重加密路径用途不同：cancel 要的是「新 IV 的新密文」绕过账本，
+ *   而 chat.send 走 WS 业务层、整个 data 已由 send() 统一加密，内部字段保持明文即可。
+ * - 明文非法（解密失败 / 非 64 位 hex）时返回 undefined，由调用方降级为纯文本提问。
+ */
+export async function decryptFileId(
+  encryptedFileId: string,
+): Promise<string | undefined> {
+  const key = await getAesKey()
+  try {
+    const plaintext = await decrypt(encryptedFileId, key)
+    return FILE_ID_PLAIN_RE.test(plaintext) ? plaintext : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /**

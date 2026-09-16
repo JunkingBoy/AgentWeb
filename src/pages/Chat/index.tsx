@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
 import { useChatStore } from '@/stores/chatStore'
 import { deleteMessagesAPI, fetchSessionMessages, stopStreamAPI, type ChatMessage } from '@/api/chat'
-import { uploadFile, cancelUploads } from '@/api/files'
+import { uploadFile, cancelUploads, decryptFileId } from '@/api/files'
 import { exportInstructionSets } from '@/api/instruction'
 import { toast } from 'sonner'
 import type { ContextUsage, InstructionSetItem } from '@/types/api'
@@ -81,8 +81,13 @@ interface UploadChip {
   size: number
   status: 'uploading' | 'done' | 'error'
   errorMsg?: string
-  /** 后端返回的加密 file_id（后续 chat.send 的 file_id 字段携带） */
+  /** 上传响应下发的**加密** file_id —— 仅用于 POST /files/cancel 删除服务端暂存 */
   fileId?: string
+  /**
+   * 解密后的**明文** file_id（64 位小写 hex，sha256 内容哈希）
+   * —— chat.send 的 file_ids 字段携带此值（后端校验 64 位小写 hex）
+   */
+  fileHash?: string
   /** 后端返回的 TTL 过期时间戳（毫秒） */
   expiredAt?: number
 }
@@ -899,7 +904,22 @@ export default function Chat() {
       const res = await uploadFile(file)
       const uploaded = res.code === 1001 ? res.data?.files?.[0] : undefined
       if (uploaded) {
-        // 用后端返回的清洗后文件名 / 大小 / 加密 file_id 更新 chip
+        // 上传响应下发的是**加密** file_id：解密还原明文（64 位 hex）供 chat.send 使用；
+        // 密文仍保留在 fileId 上，专供 /files/cancel 删除服务端暂存
+        const fileHash = await decryptFileId(uploaded.file_id)
+        if (!fileHash) {
+          // 解密失败/形态非法 → 文件无法随消息发出，按失败处理并回收服务端暂存
+          setFileChips(prev =>
+            prev.map(c =>
+              c.id === chip.id
+                ? { ...c, status: 'error', errorMsg: '文件标识校验失败，请重新上传' }
+                : c,
+            ),
+          )
+          cancelUploads([uploaded.file_id]).catch(() => {})
+          return
+        }
+        // 用后端返回的清洗后文件名 / 大小 / 明文 file_id 更新 chip
         setFileChips(prev =>
           prev.map(c =>
             c.id === chip.id
@@ -909,6 +929,7 @@ export default function Chat() {
                   name: uploaded.file_name,
                   size: uploaded.size,
                   fileId: uploaded.file_id,
+                  fileHash,
                   expiredAt: uploaded.expired_at ?? undefined,
                 }
               : c,
@@ -969,16 +990,23 @@ export default function Chat() {
     }
     setMessages(prev => [...prev, userMsg])
     setInput('')
-    // 文件随消息发出，清空待发送列表（file_id 已随后端上传完成；chat.send 消费 file_id 待后端支持）
-    setFileChips([])
+    // 文件 chip **保留**：后端按 session_id 缓存解析结果（file_id 级），
+    // 后续每条消息继续携带 file_ids 即可让 AI 就同一文档连续追问，重复发送命中缓存不重复解析。
+    // 需要「脱附件」由用户点 chip 上的移除按钮（会同时清理服务端暂存）。
     setIsTyping(true)
 
     if (wsReady) {
-      // 通过 WebSocket 发送 — 携带 session_id 和 mode 匹配后端 StandardChatEventTemplate
+      // 通过 WebSocket 发送 — 携带 session_id / mode / file_ids 匹配后端 StandardChatEventTemplate
       const payload: Record<string, unknown> = { message: text }
       if (sessionId) payload.session_id = sessionId
       const _mode = useChatStore.getState().currentMode
       if (_mode && _mode !== 'default') payload.mode = _mode
+      // 已上传成功的文件携带**明文** file_id（64 位 hex）触发后端文件解析链路；
+      // 缺省/空数组 = 纯文本提问，后端 step_consume_files 零成本直通
+      const fileIds = fileChips
+        .filter(c => c.status === 'done' && c.fileHash)
+        .map(c => c.fileHash!)
+      if (fileIds.length > 0) payload.file_ids = fileIds
       // 发送并捕获返回的 request_id，关联到刚添加的用户消息
       send('chat.send', payload).then(sentMsg => {
         const rid = sentMsg?.request_id
@@ -1013,7 +1041,8 @@ export default function Chat() {
         setIsTyping(false)
       }, 1200 + Math.random() * 1800)
     }
-  }, [input, isTyping, wsReady, send, sessionId, clearThinking])
+    // fileChips 必须入依赖：file_ids 从 chip 读取，否则闭包内会拿到上传前的旧值（空数组）
+  }, [input, isTyping, wsReady, send, sessionId, clearThinking, fileChips])
 
   // 键盘事件
   const handleKeyDown = useCallback(
