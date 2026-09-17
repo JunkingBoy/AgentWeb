@@ -22,6 +22,7 @@ export default defineConfig({
       '/ws': { target: 'http://localhost:8008', ws: true },
       '/prompts': { target: 'http://localhost:8008', changeOrigin: true },
       '/instruction': { target: 'http://localhost:8008', changeOrigin: true },
+      '/files': { target: 'http://localhost:8008', changeOrigin: true },
     },
   },
   build: {
