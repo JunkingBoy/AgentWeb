@@ -61,7 +61,12 @@ export interface InstructionSetItem {
   u_time?: string
 }
 
-/** 单文件上传成功响应项（POST /files/upload data.files 元素，对应后端 FileUploadResponse） */
+/**
+ * 单文件上传响应项（POST /files/upload 成功时 data.files 元素，对应后端 FileUploadResponse）
+ *
+ * ⚠️ 上传被拒（如文档含 EMF/WMF 矢量图）时后端走上传期门禁整批 fail：
+ * `code !== 1001`（1002）、`data` 为 null，**不会有本结构**，故无需 /files/cancel。
+ */
 export interface FileUploadResponse {
   /**
    * 会话密钥 AES 密文（base64(16B IV + ciphertext)）

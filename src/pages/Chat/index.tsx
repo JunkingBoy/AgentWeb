@@ -453,6 +453,11 @@ export default function Chat() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   // 文件上传：待发送文件 chips + 上传菜单开关
   const [fileChips, setFileChips] = useState<UploadChip[]>([])
+
+  /** 就地移除指定 chip（仅本地状态，不触发服务端清理；供上传被拒等"无服务端残留"路径使用） */
+  const dropChip = useCallback((chipId: string) => {
+    setFileChips(prev => prev.filter(c => c.id !== chipId))
+  }, [])
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPingInfo, setShowPingInfo] = useState(false)
@@ -893,14 +898,9 @@ export default function Chat() {
         // 密文仍保留在 fileId 上，专供 /files/cancel 删除服务端暂存
         const fileHash = await decryptFileId(uploaded.file_id)
         if (!fileHash) {
-          // 解密失败/形态非法 → 文件无法随消息发出，按失败处理并回收服务端暂存
-          setFileChips(prev =>
-            prev.map(c =>
-              c.id === chip.id
-                ? { ...c, status: 'error', errorMsg: '文件标识校验失败，请重新上传' }
-                : c,
-            ),
-          )
+          // 解密失败/形态非法 → 文件无法随消息发出：移除 chip + 回收服务端暂存
+          dropChip(chip.id)
+          toast.error('文件标识校验失败，请重新上传', { duration: 6000 })
           cancelUploads([uploaded.file_id]).catch(() => {})
           return
         }
@@ -921,9 +921,10 @@ export default function Chat() {
           ),
         )
       } else {
-        setFileChips(prev =>
-          prev.map(c => (c.id === chip.id ? { ...c, status: 'error', errorMsg: res.msg || '上传失败' } : c)),
-        )
+        // 上传被拒（HTTP 200 + code !== 1001）：EMF/WMF 等文档不受支持时后端在**上传期门禁**直接拒绝，
+        // 不落任何文件、不颁发 file_id，故这里只需移除 chip + 弹出后端文案，无需调 /files/cancel。
+        dropChip(chip.id)
+        toast.error(res.msg || '文件上传失败', { duration: 6000 })
       }
     } catch (err) {
       setFileChips(prev =>
@@ -934,7 +935,7 @@ export default function Chat() {
         ),
       )
     }
-  }, [fileChips])
+  }, [fileChips, dropChip])
 
   // 移除文件 chip：乐观移除本地；已上传成功的文件同时调用后端取消接口删除服务端暂存
   const removeFileChip = useCallback((chip: UploadChip) => {
@@ -1240,7 +1241,7 @@ export default function Chat() {
           {/* 模型标识 */}
           <div className={styles.modelBadge}>
             <Sparkles size={13} />
-            <span>DeepSeek V4</span>
+            <span>DeepSeek V4.1 Flash</span>
           </div>
         </div>
       </div>

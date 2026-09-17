@@ -947,6 +947,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .fileChipName {
@@ -962,7 +963,11 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
+  line-height: 1.5;
   color: var(--color-text-muted);
+  /* 后端拒收文案（如 EMF/WMF 说明）较长：允许折行并强制断词，避免溢出 chip */
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
 }
 
 .fileChipUploadingText {

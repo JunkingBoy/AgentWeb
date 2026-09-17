@@ -12,6 +12,11 @@ import { getAesKey } from '@/utils/keyManager'
  *   axios 的 transformRequest 会把 FormData JSON 序列化（文件丢失），后端报
  *   `1002 缺少必要字段`。置空后 FormData 原样发送，浏览器自动生成 multipart boundary
  * - 业务失败（如类型/大小超限）后端也返回 HTTP 200，通过 res.code !== 1001 + res.msg 判断
+ * - ⚠️ **上传期门禁（EMF/WMF）**：后端在落盘**之前**会跑一次解析门禁（docx 扫包内
+ *   word/media/，md 扫矢量图引用与内联 base64）。命中 → 整批 `fail(原因)`：不落文件、
+ *   不写 meta、不记账、**不颁发 file_id**，且立即 return；故失败时 data 恒为 null，
+ *   前端无需再调 /files/cancel（此时没有任何服务端残留可清理）。
+ *   拒收文案见 res.msg，已由后端写成用户可读的处置建议（含"[涉及: 图片名]"后缀）。
  * - 响应 files[].file_id 为**加密密文**：发给 chat.send 前须经 decryptFileId 还原明文，
  *   调 /files/cancel 前须重新加密（两条路径用途不同，见各自注释）
  */
