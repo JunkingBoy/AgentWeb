@@ -6,7 +6,8 @@
  *   decrypt → base64 decode → 取前 16B IV → AES-CBC 解密 → 明文
  *
  * RSA-OAEP（登录参数加密，与后端 Encry.rsa_encrypt/rsa_decrypt 对齐）:
- *   公钥来自 /key/public（后端 filling_key: 原文随机填充16字符后整体base64, 附带指纹）,
+ *   公钥来自 /key/public（后端 filling_key: 原文随机填充16字符后整体base64,
+ *   附带公钥 DER 的 sha256 指纹, 见 pemToDer / sha256Hex）,
  *   加密 → RSA-OAEP(SHA-1) → base64 密文
  */
 
@@ -115,22 +116,38 @@ export function extractRsaPublicKeyPem(filledKey: string, index: number): string
   return raw.slice(0, index) + raw.slice(index + 16)
 }
 
-/** sha256(data) 十六进制 — 用于校验公钥指纹（后端 sha256_hash 前 8 位） */
-export async function sha256Hex(data: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(data),
-  )
+/* ===== RSA 公钥 DER（指纹计算用） ===== */
+
+/**
+ * PEM → DER 字节（ASN.1 SubjectPublicKeyInfo）。
+ * 后端指纹算法 utils/Encry.public_key_fingerprint:
+ *   sha256(RSA.import_key(pem).export_key("DER"))
+ * PyCryptodome 对**公钥**忽略 pkcs 参数，DER 输出恒为 SubjectPublicKeyInfo，
+ * 即 PEM 本体 base64 解码后的字节，故前端直接对 PEM 的 DER 取哈希即可对齐
+ * （与换行符/行尾空白/缩进无关）。
+ */
+export function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
+  const b64 = pem
+    .replace(/-----BEGIN PUBLIC KEY-----/, '')
+    .replace(/-----END PUBLIC KEY-----/, '')
+    .replace(/\s+/g, '')
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+}
+
+/**
+ * sha256(data) 十六进制。
+ * - data 为字符串时按 UTF-8 编码（与后端 sha256_hash 一致）
+ * - data 为字节时直接哈希（与后端 public_key_fingerprint 的 DER 哈希一致）
+ */
+export async function sha256Hex(data: string | BufferSource): Promise<string> {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
   return bytesToHex(new Uint8Array(digest))
 }
 
 /** PEM 公钥 → WebCrypto RSA-OAEP CryptoKey（SHA-1 与后端 PyCryptodome PKCS1_OAEP 默认哈希一致） */
 export async function importRsaPublicKey(pem: string): Promise<CryptoKey> {
-  const b64 = pem
-    .replace(/-----BEGIN PUBLIC KEY-----/, '')
-    .replace(/-----END PUBLIC KEY-----/, '')
-    .replace(/\s+/g, '')
-  const der = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+  const der = pemToDer(pem)
   return crypto.subtle.importKey(
     'spki',
     der,

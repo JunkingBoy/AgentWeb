@@ -9,7 +9,8 @@ export interface PublicKeyData {
   index: number
   key: string
   /**
-   * RSA 公钥指纹（sha256(PEM) 前 8 位 hex）。
+   * RSA 公钥指纹（sha256(公钥 DER / SubjectPublicKeyInfo) 的完整 64 位 hex）。
+   * 同一把公钥恒定，与 PEM 换行、填充位置无关，仅换钥时变化；
    * 仅 /key/public 返回的 RSA 公钥携带；登录响应中颁发的 AES 密钥无此字段。
    */
   fingerprint?: string
