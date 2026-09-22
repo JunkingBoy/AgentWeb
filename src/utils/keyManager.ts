@@ -4,6 +4,7 @@ import {
   hexKeyToCryptoKey,
   extractRsaPublicKeyPem,
   importRsaPublicKey,
+  pemToDer,
   sha256Hex,
 } from '@/utils/crypto'
 import type { PublicKeyData } from '@/types/api'
@@ -84,10 +85,18 @@ export async function getRsaPublicKey(): Promise<CryptoKey> {
   }
   const { index, key, fingerprint } = res.data
   const pem = extractRsaPublicKeyPem(key, index)
-  // 指纹校验：sha256(PEM) 前 8 位 与后端返回的 fingerprint 一致，防止传输篡改
+  // 指纹校验（与后端 KeyCenter.filling_key → utils.Encry.public_key_fingerprint 对齐）：
+  //   fingerprint = sha256(DER(PEM)) 的完整 64 位 hex，同一把公钥恒定，与 PEM 换行/缩进无关
+  //   该值可由公钥自身推导，用于校验 key 与 fingerprint 是否配套（公钥是否被替换）；
+  //   若要抗中间人替换，需另与本端预置指纹（pinning）比对。
   if (fingerprint) {
-    const actual = (await sha256Hex(pem)).slice(0, 8)
-    if (actual !== fingerprint) {
+    let actual: string
+    try {
+      actual = await sha256Hex(pemToDer(pem))
+    } catch {
+      throw new Error('RSA公钥指纹校验失败')
+    }
+    if (actual !== fingerprint.toLowerCase()) {
       throw new Error('RSA公钥指纹校验失败')
     }
   }
