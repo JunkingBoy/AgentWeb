@@ -35,6 +35,16 @@ function displayTitle(title: string): string {
   return title || '新对话'
 }
 
+/**
+ * 行是否落在"预判范围"内（与观察器 rootMargin: 200px 语义保持一致）。
+ * 行位于 .list 滚动容器内，而该容器本身贴在视口上，故直接用 viewport 坐标比较。
+ */
+function isInPrefetchRange(el: HTMLElement): boolean {
+  const rect = el.getBoundingClientRect()
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+  return rect.top < viewportHeight + 200 && rect.bottom > -200
+}
+
 export default function Sidebar() {
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -49,6 +59,8 @@ export default function Sidebar() {
   const logout = useAuthStore(s => s.logout)
   const sessions = useChatStore(s => s.sessions)
   const sessionsLoaded = useChatStore(s => s.sessionsLoaded)
+  const sessionsError = useChatStore(s => s.sessionsError)
+  const refreshSessionIds = useChatStore(s => s.refreshSessionIds)
   const selectedSessionId = useChatStore(s => s.selectedSessionId)
   const requestNewChat = useChatStore(s => s.requestNewChat)
   const loadSessions = useChatStore(s => s.loadSessions)
@@ -66,15 +78,41 @@ export default function Sidebar() {
   }, [sessionsLoaded, loadSessions])
 
   /* ===== 标题懒加载：只对进入视口的会话行请求 /chat/messages ===== */
+  const listRef = useRef<HTMLDivElement | null>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const pendingObserveRef = useRef<Set<Element>>(new Set())
   // 用 ref 持有回调，保证观察器只创建一次（不随 store 引用变化重建）
   const ensureTitleRef = useRef(ensureSessionTitle)
   useEffect(() => {
     ensureTitleRef.current = ensureSessionTitle
   }, [ensureSessionTitle])
 
+  /**
+   * 接管当前渲染出的所有会话行：范围内立即补标题，并全部交给观察器（滚动交给它）。
+   *
+   * 这里**不做"是否已观察"标记**——IntersectionObserver.observe 对已观察元素是 no-op，
+   * 幂等调用才扛得住：StrictMode 挂载→清理→重挂、移动端抽屉重开、列表增删。
+   * （原实现用 ref 回调 + data 标记只注册一次，观察器在 StrictMode 清理时被 disconnect 后
+   *   就再也没人接管这些行，导致标题永远停留在骨架、侧边栏看起来没有记录。）
+   */
+  const syncObservedRows = useCallback(() => {
+    const list = listRef.current
+    if (!list) return
+    const io = observerRef.current
+    list.querySelectorAll<HTMLElement>('[data-session-id]').forEach(el => {
+      if (isInPrefetchRange(el)) {
+        const id = el.dataset.sessionId
+        if (id) ensureTitleRef.current(id)
+      }
+      io?.observe(el)
+    })
+  }, [])
+
   useEffect(() => {
+    // 无 IntersectionObserver 的环境（极老浏览器）→ 直接全量补标题兜底
+    if (typeof IntersectionObserver === 'undefined') {
+      void ensureAllTitles()
+      return
+    }
     const io = new IntersectionObserver(
       entries => {
         for (const entry of entries) {
@@ -89,29 +127,18 @@ export default function Sidebar() {
       { root: null, rootMargin: '200px 0px', threshold: 0 },
     )
     observerRef.current = io
-    pendingObserveRef.current.forEach(el => io.observe(el))
-    pendingObserveRef.current.clear()
+    // 首帧不依赖观察器的初始回调，直接按几何位置补一次，避免"等不到回调"的假空列表
+    syncObservedRows()
     return () => {
       io.disconnect()
       observerRef.current = null
     }
-  }, [])
+  }, [syncObservedRows, ensureAllTitles])
 
-  /**
-   * 行 ref 回调：登记待观察元素。
-   * React 在每次渲染后都会以 (null → el) 重新调用内联 ref，这里用 data 标记保证
-   * 每个元素只注册一次观察（IntersectionObserver 对重复 observe 虽为 no-op，
-   * 但显式标记可避免依赖该细节）。
-   */
-  const bindRow = useCallback((el: HTMLDivElement | null, id: string) => {
-    if (!el) return
-    el.dataset.sessionId = id
-    if (el.dataset.observed === '1') return
-    el.dataset.observed = '1'
-    const io = observerRef.current
-    if (io) io.observe(el)
-    else pendingObserveRef.current.add(el)
-  }, [])
+  // 列表变化（新会话乐观插入 / 删除 / 刷新）后接管新出现的行
+  useEffect(() => {
+    syncObservedRows()
+  }, [sessions, syncObservedRows])
 
   /** 搜索依赖全部标题 → 输入搜索词时全量补标题（受控并发；已加载的会早退） */
   const allTitlesRequestedRef = useRef(false)
@@ -212,9 +239,16 @@ export default function Sidebar() {
       </div>
 
       {/* 中间：对话列表 */}
-      <div className={styles.list}>
+      <div className={styles.list} ref={listRef}>
         {!sessionsLoaded ? (
           <p className={styles.empty}>加载中...</p>
+        ) : sessionsError ? (
+          <div className={styles.empty}>
+            <p>{sessionsError}</p>
+            <button className={styles.retryBtn} onClick={() => refreshSessionIds()}>
+              重新加载
+            </button>
+          </div>
         ) : filtered.length === 0 ? (
           <p className={styles.empty}>
             {search ? (searchPending ? '搜索中...' : '无匹配结果') : '暂无对话记录'}
@@ -228,7 +262,7 @@ export default function Sidebar() {
             return (
             <div
               key={s.id}
-              ref={el => bindRow(el, s.id)}
+              data-session-id={s.id}
               className={cn(styles.item, selectedSessionId === s.id && styles.itemActive)}
               onClick={() => selectSession(s.id)}
             >
