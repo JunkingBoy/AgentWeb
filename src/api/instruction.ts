@@ -1,47 +1,36 @@
 import client from './client'
 import type { ApiResponse, InstructionSetItem } from '@/types/api'
-import { encrypt, decrypt } from '@/utils/crypto'
-import { getAesKey } from '@/utils/keyManager'
+import { toWireId } from '@/utils/idCodec'
+import { dedupe } from '@/utils/concurrency'
+
+/*
+ * id 传输规则统一收敛到 @/utils/idCodec：
+ * session_id / instruction_id / request_id 入参支持明文或服务端颁发的密文，
+ * 出网前一律由 idCodec 生成**全新**密文（新 IV），以满足服务端防重放账本要求。
+ */
 
 /**
- * 先解密再重新加密（/chat/sessions 返回的 session_id 已是加密值）
+ * 获取指定会话下的指令集列表。
+ * 同一会话的并发调用会被合并（侧边栏菜单展开 + 选中会话可能同时触发）。
  */
-async function decryptThenEncrypt(value: string): Promise<string> {
-  const key = await getAesKey()
-  const plaintext = await decrypt(value, key)
-  return encrypt(plaintext, key)
-}
-
-/**
- * 统一加密：原始 UUID（来自 WS）→ 直接 AES 加密；
- * 已加密值（来自 HTTP /chat/sessions）→ 解密后重新加密。
- * 适用于 session_id / instruction_id 需要经 HTTP 接口传递的场景。
- */
-async function ensureEncrypted(value: string): Promise<string> {
-  if (/^[0-9a-f]{32}$/i.test(value)) {
-    const key = await getAesKey()
-    return encrypt(value, key)
-  }
-  return decryptThenEncrypt(value)
-}
-
-/** 获取指定会话下的指令集列表 */
 export async function fetchInstructionSets(
   sessionId: string,
 ): Promise<ApiResponse<InstructionSetItem[]>> {
-  const encryptedId = await decryptThenEncrypt(sessionId)
-  const res = await client.get<ApiResponse<InstructionSetItem[]>>(
-    '/instruction/list',
-    { params: { session_id: encryptedId } },
-  )
-  return res.data
+  return dedupe(`instructions:${sessionId}`, async () => {
+    const encryptedId = await toWireId(sessionId)
+    const res = await client.get<ApiResponse<InstructionSetItem[]>>(
+      '/instruction/list',
+      { params: { session_id: encryptedId } },
+    )
+    return res.data
+  })
 }
 
-/** 软删除单条指令集 — instruction_id 为服务端返回的加密值，先解密再重加密后发送 */
+/** 软删除单条指令集 — instruction_id 为服务端颁发的密文，出网前重新加密 */
 export async function deleteInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await decryptThenEncrypt(instructionId)
+  const encryptedId = await toWireId(instructionId)
   const res = await client.delete<ApiResponse<null>>(
     '/instruction/single',
     { params: { instruction_id: encryptedId } },
@@ -59,16 +48,13 @@ export interface BatchSaveResult {
 export async function batchSaveInstructionSets(
   sets: InstructionSetItem[],
 ): Promise<ApiResponse<BatchSaveResult>> {
-  // /instruction/list 返回的 session_id / instruction_id 已是加密值，先解密再重加密
-  const key = await getAesKey()
+  // /instruction/list 返回的 id 均为服务端颁发的密文，出网前统一重新加密
   const body = await Promise.all(sets.map(async (s) => {
-    const sessionId = await decrypt(s.session_id, key)
-    const instructionId = await decrypt(s.instruction_id, key)
-    return {
-      session_id: await encrypt(sessionId, key),
-      instruction_id: await encrypt(instructionId, key),
-      cases: s.cases,
-    }
+    const [sessionId, instructionId] = await Promise.all([
+      toWireId(s.session_id),
+      toWireId(s.instruction_id),
+    ])
+    return { session_id: sessionId, instruction_id: instructionId, cases: s.cases }
   }))
   const res = await client.put<ApiResponse<BatchSaveResult>>(
     '/instruction/batch',
@@ -77,11 +63,11 @@ export async function batchSaveInstructionSets(
   return res.data
 }
 
-/** 恢复已删除的指令集 — instruction_id 为服务端返回的加密值，先解密再重加密后发送 */
+/** 恢复已删除的指令集 — instruction_id 为服务端颁发的密文，出网前重新加密 */
 export async function restoreInstructionSet(
   instructionId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await decryptThenEncrypt(instructionId)
+  const encryptedId = await toWireId(instructionId)
   const res = await client.patch<ApiResponse<null>>(
     '/instruction/restore',
     {},
@@ -98,23 +84,6 @@ export class ExportError extends Error {
     this.code = code
     this.name = 'ExportError'
   }
-}
-
-/** 明文 request_id（WS 实时会话），带横线或不带横线均视为明文 UUID */
-const PLAIN_REQUEST_ID_RE =
-  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i
-
-/**
- * request_id 规范化：明文 UUID → 直接加密一次；
- * 已加密值（/chat/messages 历史消息返回的密文）→ 先解密再重加密。
- * 与 chat.ts 的删除接口处理保持一致。
- */
-async function ensureEncryptedRequestId(requestId: string): Promise<string> {
-  if (PLAIN_REQUEST_ID_RE.test(requestId)) {
-    const key = await getAesKey()
-    return encrypt(requestId, key)
-  }
-  return decryptThenEncrypt(requestId)
 }
 
 /**
@@ -163,7 +132,7 @@ async function resolveExportResponse(
 
 /** 导出指令集为 Excel 文件（触发浏览器下载） */
 export async function exportInstructionSets(sessionId: string): Promise<void> {
-  const encryptedId = await ensureEncrypted(sessionId)
+  const encryptedId = await toWireId(sessionId)
   const token = localStorage.getItem('token')
 
   const response = await fetch(`/instruction/export/session?session_id=${encodeURIComponent(encryptedId)}`, {
@@ -180,7 +149,7 @@ export async function exportInstructionSets(sessionId: string): Promise<void> {
 export async function exportInstructionSetsByRequest(
   requestId: string,
 ): Promise<void> {
-  const encryptedId = await ensureEncryptedRequestId(requestId)
+  const encryptedId = await toWireId(requestId)
   const token = localStorage.getItem('token')
 
   const response = await fetch(`/instruction/export/request?request_id=${encodeURIComponent(encryptedId)}`, {

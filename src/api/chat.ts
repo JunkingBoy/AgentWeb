@@ -1,7 +1,6 @@
 import client from './client'
 import type { ApiResponse, PromptMode } from '@/types/api'
-import { encrypt, decrypt } from '@/utils/crypto'
-import { getAesKey } from '@/utils/keyManager'
+import { toWireId, toWireIds } from '@/utils/idCodec'
 
 /** 服务端返回的单条消息结构 */
 export interface ChatMessage {
@@ -13,72 +12,50 @@ export interface ChatMessage {
   c_time?: string
 }
 
-/**
- * 加密 session_id 供 HTTP API 使用
- * 后端 ChatHistoryQuery 要求 session_id 为 AES 加密后的 base64 字符串（长度 36-256）
- * 复用 WebSocket 传输层的 AES 密钥（来自 /key/public），加密格式一致
+/*
+ * id 传输规则统一收敛到 @/utils/idCodec：
+ *   · 出网前由 toWireId 生成**全新**密文（新 IV），绕过服务端防重放账本；
+ *   · 入参既可以是明文（store 内统一存明文），也可以是服务端颁发的密文，
+ *     由 idCodec 判定后分别处理，调用方无需再关心正则与"先解密再加密"。
  */
-async function encryptSessionId(sessionId: string): Promise<string> {
-  const key = await getAesKey()
-  return encrypt(sessionId, key)
-}
 
-/** 获取当前用户的所有会话 ID（按最后活跃时间倒序） */
+/** 获取当前用户的所有会话 ID（按最后活跃时间倒序）—— 返回服务端颁发的密文 */
 export async function fetchSessions(): Promise<ApiResponse<string[]>> {
   const res = await client.get<ApiResponse<string[]>>('/chat/sessions')
   return res.data
 }
 
-/** 获取指定会话的消息列表（按时间正序） */
+/** 获取指定会话的消息列表（按时间正序）；sessionId 支持明文或密文 */
 export async function fetchSessionMessages(
   sessionId: string,
 ): Promise<ApiResponse<ChatMessage[]>> {
-  // /chat/sessions 返回的 session_id 已是加密值，先解密得到明文，再重新加密后发送
-  const key = await getAesKey()
-  const plaintext = await decrypt(sessionId, key)
-  const encryptedId = await encrypt(plaintext, key)
+  const encryptedId = await toWireId(sessionId)
   const res = await client.get<ApiResponse<ChatMessage[]>>('/chat/messages', {
     params: { session_id: encryptedId },
   })
   return res.data
 }
 
-/** 删除指定会话（软删除）—— session_id 先解密再加密后发送 */
+/** 删除指定会话（软删除） */
 export async function deleteSessionAPI(
   sessionId: string,
 ): Promise<ApiResponse<null>> {
-  const key = await getAesKey()
-  const plaintext = await decrypt(sessionId, key)
-  const encryptedId = await encrypt(plaintext, key)
+  const encryptedId = await toWireId(sessionId)
   const res = await client.delete<ApiResponse<null>>('/chat/session', {
     params: { session_id: encryptedId },
   })
   return res.data
 }
 
-/** 明文 UUID（实时会话的 request_id 格式） */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 /**
  * 批量删除多组问答（对应后端 message_delete 接口，软删除，全或无语义）
  * POST /chat/delete 请求体传参。
- * 实时会话(WS)的 request_id 是明文 UUID，加密一次即可；
- * 历史会话(/chat/messages)返回的 request_id 已是加密值，先解密再重加密，
- * 避免把服务端回传的密文原样透传。
+ * request_id 统一为明文（WS 实时会话与历史消息在前端均已规范化）→ 每条现场加密一次。
  */
 export async function deleteMessagesAPI(
   requestIds: string[],
 ): Promise<ApiResponse<null>> {
-  const key = await getAesKey()
-  const encryptedIds = await Promise.all(
-    requestIds.map(async (id) => {
-      // 明文 UUID（WS 实时会话）→ 加密一次
-      if (UUID_RE.test(id)) return encrypt(id, key)
-      // 服务端已加密值（/chat/messages 历史消息）→ 先解密再重加密
-      const plaintext = await decrypt(id, key)
-      return encrypt(plaintext, key)
-    }),
-  )
+  const encryptedIds = await toWireIds(requestIds)
   const res = await client.post<ApiResponse<null>>('/chat/delete', {
     request_ids: encryptedIds,
   })
@@ -95,7 +72,7 @@ export async function fetchModes(): Promise<ApiResponse<PromptMode[]>> {
 export async function stopStreamAPI(
   requestId: string,
 ): Promise<ApiResponse<null>> {
-  const encryptedId = await encryptSessionId(requestId)
+  const encryptedId = await toWireId(requestId)
   const res = await client.delete<ApiResponse<null>>('/chat/stop', {
     params: { request_id: encryptedId },
   })

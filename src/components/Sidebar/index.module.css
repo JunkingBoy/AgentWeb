@@ -314,6 +314,32 @@
   font-weight: 500;
 }
 
+/* 标题骨架（标题按可见性懒加载，未就绪时以骨架条占位，避免闪现"新对话"再跳变） */
+.itemTitleSkeleton {
+  display: block;
+  height: 12px;
+  width: 70%;
+  margin-top: 2px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-sidebar-item-hover) 25%,
+    var(--color-border-light) 37%,
+    var(--color-sidebar-item-hover) 63%
+  );
+  background-size: 400% 100%;
+  animation: titleShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes titleShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .itemTitleSkeleton { animation: none; }
+}
+
 .itemTime {
   font-size: 11px;
   color: var(--color-text-tertiary);

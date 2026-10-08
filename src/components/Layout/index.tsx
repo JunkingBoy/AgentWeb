@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { fetchUserInfo } from '@/api/user'
 import { clearKeyCache } from '@/utils/keyManager'
+import { clearIdCodecCache } from '@/utils/idCodec'
 import { useIsMobile } from '@/hooks/use-mobile'
 import SidebarContext from '@/contexts/SidebarContext'
 import {
@@ -26,6 +27,7 @@ export default function Layout() {
     const token = localStorage.getItem('token')
     if (!token) {
       clearKeyCache()
+      clearIdCodecCache()
       navigate('/login', { replace: true })
       return
     }
@@ -37,6 +39,7 @@ export default function Layout() {
         } else {
           localStorage.removeItem('token')
           clearKeyCache()
+          clearIdCodecCache()
           navigate('/login', { replace: true })
         }
       })

@@ -1,7 +1,6 @@
 import client from './client'
 import type { ApiResponse, FileUploadBatchResponse } from '@/types/api'
-import { encrypt, decrypt } from '@/utils/crypto'
-import { getAesKey } from '@/utils/keyManager'
+import { toPlainIdSafe, toWireIds } from '@/utils/idCodec'
 
 /**
  * 上传文件（POST /files/upload）
@@ -50,13 +49,9 @@ const FILE_ID_PLAIN_RE = /^[0-9a-f]{64}$/
 export async function decryptFileId(
   encryptedFileId: string,
 ): Promise<string | undefined> {
-  const key = await getAesKey()
-  try {
-    const plaintext = await decrypt(encryptedFileId, key)
-    return FILE_ID_PLAIN_RE.test(plaintext) ? plaintext : undefined
-  } catch {
-    return undefined
-  }
+  // 解密结果由 idCodec 统一缓存，同一密文重复调用零成本；解密失败原样返回 → 形态校验拦下
+  const plaintext = await toPlainIdSafe(encryptedFileId)
+  return FILE_ID_PLAIN_RE.test(plaintext) ? plaintext : undefined
 }
 
 /**
@@ -65,20 +60,14 @@ export async function decryptFileId(
  * - 请求体 `{"file_ids": [重加密file_id, ...]}`，file_id 为上传响应下发的加密值
  * - ⚠️ 防重放：后端对上传响应下发的密文在颁发时记账（replay_ledger），
  *   原样回传会被判重放整批拒绝。前端必须用会话密钥解密拿到明文 file_id 后
- *   重新加密（新 IV → 新密文，不在账本中）再提交——与 session_id / request_id 同模式
+ *   重新加密（新 IV → 新密文，不在账本中）再提交——与 session_id / request_id 同模式，
+ *   统一的 idCodec.toWireIds 已内置该规则
  * - 批量 + 全或无语义：任一密文解密失败 / 判重放 / 文件不存在 → 整批拒绝、零删除
  */
 export async function cancelUploads(
   fileIds: string[],
 ): Promise<ApiResponse<null>> {
-  const key = await getAesKey()
-  // 防重放：不透传服务端颁发密文，先解密再重加密
-  const reEncrypted = await Promise.all(
-    fileIds.map(async id => {
-      const plaintext = await decrypt(id, key)
-      return encrypt(plaintext, key)
-    }),
-  )
+  const reEncrypted = await toWireIds(fileIds)
   const res = await client.post<ApiResponse<null>>('/files/cancel', {
     file_ids: reEncrypted,
   })

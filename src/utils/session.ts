@@ -1,4 +1,5 @@
 import { clearKeyCache } from '@/utils/keyManager'
+import { clearIdCodecCache } from '@/utils/idCodec'
 
 /**
  * 会话失效统一处理(HTTP 401 / WS 鉴权失败 / AES 密钥未颁发)。
@@ -8,5 +9,6 @@ export function handleSessionExpired(): void {
   if (window.location.pathname === '/login') return
   localStorage.removeItem('token')
   clearKeyCache()
+  clearIdCodecCache()
   window.location.href = '/login'
 }
