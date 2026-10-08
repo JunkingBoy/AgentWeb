@@ -72,6 +72,8 @@ interface ChatState {
   newChatFlag: number
   sessions: SessionInfo[]
   sessionsLoaded: boolean
+  /** 会话列表加载失败原因；非空时侧边栏显示"重新加载"，而不是误报"暂无对话记录" */
+  sessionsError: string | null
   /** 当前选中的历史会话（明文 id） */
   selectedSessionId: string | null
   /** 当前选中会话的消息镜像（供 Chat 页渲染） */
@@ -155,6 +157,7 @@ export const useChatStore = create<ChatState>((set) => ({
   newChatFlag: 0,
   sessions: [],
   sessionsLoaded: false,
+  sessionsError: null,
   selectedSessionId: null,
   historyMessages: [],
   loadingHistory: false,
@@ -202,13 +205,28 @@ export const useChatStore = create<ChatState>((set) => ({
     try {
       const res = await dedupe('sessions:list', () => fetchSessions())
       if (res.code !== 1001 || !res.data) {
-        set({ sessionsLoaded: true })
+        console.error('[chatStore] /chat/sessions 返回异常', res.code, res.msg)
+        set({ sessionsLoaded: true, sessionsError: res.msg || '会话列表加载失败' })
         return
       }
       // 服务端下发的是密文 id → 还原明文（带缓存），才能与本地会话身份对齐
+      let decryptFailed = 0
       const plainIds = (await Promise.all(
-        res.data.map(id => toPlainId(id).catch(() => null)),
+        res.data.map(id => toPlainId(id).catch(e => {
+          decryptFailed++
+          console.error('[chatStore] session_id 解密失败', e)
+          return null
+        })),
       )).filter((id): id is string => !!id)
+
+      // 一条都没解出来 = 链路异常（而非"用户没有会话"），必须报错而不是显示空列表
+      if (res.data.length > 0 && plainIds.length === 0) {
+        set({
+          sessionsLoaded: true,
+          sessionsError: `会话列表解密失败（${decryptFailed}/${res.data.length}），请重新登录或刷新页面`,
+        })
+        return
+      }
 
       // 服务端还没把刚创建的会话吐出来时，保留本地乐观行，避免列表里突然消失
       const ordered = pinId && !plainIds.includes(pinId) ? [pinId, ...plainIds] : plainIds
@@ -218,11 +236,15 @@ export const useChatStore = create<ChatState>((set) => ({
         return {
           sessions: ordered.map(id => prevById.get(id) ?? { id, title: '', titleLoaded: false }),
           sessionsLoaded: true,
+          sessionsError: null,
         }
       })
-    } catch {
-      console.warn('[chatStore] 加载会话列表失败')
-      set({ sessionsLoaded: true })
+    } catch (e) {
+      console.error('[chatStore] 加载会话列表失败', e)
+      set({
+        sessionsLoaded: true,
+        sessionsError: e instanceof Error ? e.message : '网络异常，会话列表加载失败',
+      })
     }
   },
 
