@@ -1,5 +1,5 @@
 import { Search, MessageSquare, Plus, LogOut, User, KeyRound, Trash2, Download, MoreVertical, X, PanelLeftClose } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,12 +54,77 @@ export default function Sidebar() {
   const loadSessions = useChatStore(s => s.loadSessions)
   const selectSession = useChatStore(s => s.selectSession)
   const deleteSession = useChatStore(s => s.deleteSession)
+  const ensureSessionTitle = useChatStore(s => s.ensureSessionTitle)
+  const ensureAllTitles = useChatStore(s => s.ensureAllTitles)
+  const ensureInstructionSets = useChatStore(s => s.ensureInstructionSets)
   const instructionSetsBySession = useChatStore(s => s.instructionSetsBySession)
+  const instructionLoading = useChatStore(s => s.instructionLoading)
 
-  // 挂载时加载会话列表
+  // 挂载时加载会话列表（仅 1 个 /chat/sessions 请求，标题交给可见性观察按需补）
   useEffect(() => {
     if (!sessionsLoaded) loadSessions()
   }, [sessionsLoaded, loadSessions])
+
+  /* ===== 标题懒加载：只对进入视口的会话行请求 /chat/messages ===== */
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const pendingObserveRef = useRef<Set<Element>>(new Set())
+  // 用 ref 持有回调，保证观察器只创建一次（不随 store 引用变化重建）
+  const ensureTitleRef = useRef(ensureSessionTitle)
+  useEffect(() => {
+    ensureTitleRef.current = ensureSessionTitle
+  }, [ensureSessionTitle])
+
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const id = (entry.target as HTMLElement).dataset.sessionId
+          // 保持观察：标题已加载时该调用会立即早退（零成本），
+          // 加载失败时滚出再滚回即可自动重试
+          if (id) ensureTitleRef.current(id)
+        }
+      },
+      // 提前 200px 预判，滚动到位置时标题通常已就绪
+      { root: null, rootMargin: '200px 0px', threshold: 0 },
+    )
+    observerRef.current = io
+    pendingObserveRef.current.forEach(el => io.observe(el))
+    pendingObserveRef.current.clear()
+    return () => {
+      io.disconnect()
+      observerRef.current = null
+    }
+  }, [])
+
+  /**
+   * 行 ref 回调：登记待观察元素。
+   * React 在每次渲染后都会以 (null → el) 重新调用内联 ref，这里用 data 标记保证
+   * 每个元素只注册一次观察（IntersectionObserver 对重复 observe 虽为 no-op，
+   * 但显式标记可避免依赖该细节）。
+   */
+  const bindRow = useCallback((el: HTMLDivElement | null, id: string) => {
+    if (!el) return
+    el.dataset.sessionId = id
+    if (el.dataset.observed === '1') return
+    el.dataset.observed = '1'
+    const io = observerRef.current
+    if (io) io.observe(el)
+    else pendingObserveRef.current.add(el)
+  }, [])
+
+  /** 搜索依赖全部标题 → 输入搜索词时全量补标题（受控并发；已加载的会早退） */
+  const allTitlesRequestedRef = useRef(false)
+  useEffect(() => {
+    if (!search) {
+      // 清空搜索后复位，下一次搜索可再次补全（期间新出现的会话）
+      allTitlesRequestedRef.current = false
+      return
+    }
+    if (allTitlesRequestedRef.current) return
+    allTitlesRequestedRef.current = true
+    ensureAllTitles()
+  }, [search, ensureAllTitles])
 
   // 点击搜索框外部自动收起
   useEffect(() => {
@@ -83,6 +148,9 @@ export default function Sidebar() {
   const filtered = sessions.filter(s =>
     s.title.toLowerCase().includes(search.toLowerCase()),
   )
+
+  /** 搜索态下仍有标题在加载 → 提示"搜索中"，避免结果看起来是空的 */
+  const searchPending = !!search && sessions.some(s => !s.titleLoaded)
 
   const username = user?.username || '用户'
   const avatarLetter = username.charAt(0).toUpperCase()
@@ -148,19 +216,36 @@ export default function Sidebar() {
         {!sessionsLoaded ? (
           <p className={styles.empty}>加载中...</p>
         ) : filtered.length === 0 ? (
-          <p className={styles.empty}>{search ? '无匹配结果' : '暂无对话记录'}</p>
+          <p className={styles.empty}>
+            {search ? (searchPending ? '搜索中...' : '无匹配结果') : '暂无对话记录'}
+          </p>
         ) : (
-          filtered.map(s => (
+          filtered.map(s => {
+            const sets = instructionSetsBySession[s.id]
+            const setsLoading = !!instructionLoading[s.id]
+            // 已确认无指令集才禁用导出；未知/加载中保持可点，失败时由导出接口给出后端文案
+            const exportDisabled = !setsLoading && sets !== undefined && sets.length === 0
+            return (
             <div
               key={s.id}
+              ref={el => bindRow(el, s.id)}
               className={cn(styles.item, selectedSessionId === s.id && styles.itemActive)}
               onClick={() => selectSession(s.id)}
             >
               <MessageSquare size={15} className={styles.itemIcon} />
               <div className={styles.itemContent}>
-                <span className={styles.itemTitle}>{displayTitle(s.title)}</span>
+                {s.titleLoaded ? (
+                  <span className={styles.itemTitle}>{displayTitle(s.title)}</span>
+                ) : (
+                  <span className={styles.itemTitleSkeleton} aria-hidden="true" />
+                )}
               </div>
-              <DropdownMenu>
+              <DropdownMenu
+                onOpenChange={open => {
+                  // 菜单展开时才拉取该会话的指令集（登录后不再为每个会话预取）
+                  if (open) ensureInstructionSets(s.id)
+                }}
+              >
                 <DropdownMenuTrigger asChild>
                   <button
                     className={styles.itemMoreBtn}
@@ -171,7 +256,16 @@ export default function Sidebar() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="right" className={styles.dropMenu}>
-                  {instructionSetsBySession[s.id]?.length ? (
+                  {exportDisabled ? (
+                    <div
+                      className={cn(styles.menuItem, styles.menuItemDisabled)}
+                      onClick={e => e.stopPropagation()}
+                      onPointerDown={e => e.stopPropagation()}
+                    >
+                      <Download size={14} />
+                      <span>导出指令集</span>
+                    </div>
+                  ) : (
                     <DropdownMenuItem
                       className={styles.menuItem}
                       onClick={async () => {
@@ -186,15 +280,6 @@ export default function Sidebar() {
                       <Download size={14} />
                       <span>导出指令集</span>
                     </DropdownMenuItem>
-                  ) : (
-                    <div
-                      className={cn(styles.menuItem, styles.menuItemDisabled)}
-                      onClick={e => e.stopPropagation()}
-                      onPointerDown={e => e.stopPropagation()}
-                    >
-                      <Download size={14} />
-                      <span>导出指令集</span>
-                    </div>
                   )}
                   <DropdownMenuItem
                     className={cn(styles.menuItem, styles.menuDanger)}
@@ -206,7 +291,8 @@ export default function Sidebar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          ))
+            )
+          })
         )}
       </div>
 

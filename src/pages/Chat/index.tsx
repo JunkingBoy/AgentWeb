@@ -27,8 +27,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWebSocket, type WsMessage, type WsStatus } from '@/hooks/useWebSocket'
-import { useChatStore } from '@/stores/chatStore'
-import { deleteMessagesAPI, fetchSessionMessages, stopStreamAPI, type ChatMessage } from '@/api/chat'
+import { useChatStore, truncateTitle } from '@/stores/chatStore'
+import { deleteMessagesAPI, stopStreamAPI, type ChatMessage } from '@/api/chat'
 import { uploadFile, cancelUploads, decryptFileId } from '@/api/files'
 import { exportInstructionSets, ExportError } from '@/api/instruction'
 import { toast } from 'sonner'
@@ -434,6 +434,10 @@ export default function Chat() {
   const setSessionId = useChatStore(s => s.setSessionId)
   const selectedSessionId = useChatStore(s => s.selectedSessionId)
   const historyMessages = useChatStore(s => s.historyMessages)
+  const loadingHistory = useChatStore(s => s.loadingHistory)
+  const upsertLocalSession = useChatStore(s => s.upsertLocalSession)
+  const refreshSessionIds = useChatStore(s => s.refreshSessionIds)
+  const revalidateSession = useChatStore(s => s.revalidateSession)
   const thinkingContent = useChatStore(s => s.thinkingContent)
   const isThinking = useChatStore(s => s.isThinking)
   const contextUsage = useChatStore(s => s.contextUsage)
@@ -599,17 +603,19 @@ export default function Chat() {
     connectionInfo
   const isConnected = status === 'connected' && pingHealthy
   const isDegraded = status === 'connected' && !pingHealthy
-  const isWelcome = messages.length === 0 && !isTyping
+  // 历史会话切换中且尚无内容 → 显示会话加载态，而不是空会话欢迎页
+  const isSessionLoading = loadingHistory && messages.length === 0
+  const isWelcome = messages.length === 0 && !isTyping && !isSessionLoading
 
   // 连接状态变化时更新
   useEffect(() => {
     setWsReady(isConnected)
   }, [isConnected])
 
-  // 页面加载时获取模式列表
+  // 页面加载时获取模式列表（已加载则复用 store 缓存，不再重复请求）
   useEffect(() => {
-    loadModes()
-  }, [loadModes])
+    if (!modesLoaded) loadModes()
+  }, [loadModes, modesLoaded])
 
   // 注册 WS 消息回调
   useEffect(() => {
@@ -651,8 +657,8 @@ export default function Chat() {
             setSessionId('')
             useChatStore.setState({ selectedSessionId: null, historyMessages: [] })
           }
-          // 刷新侧边栏，让已删除的会话从历史列表消失
-          useChatStore.getState().loadSessions()
+          // 刷新侧边栏（仅 1 个 /chat/sessions 请求），让已删除的会话从历史列表消失
+          void refreshSessionIds()
           return
         }
 
@@ -660,7 +666,17 @@ export default function Chat() {
         const instructionSets = data?.instruction_sets
         // 保存服务端返回的 session_id（新建会话时后端自动生成）
         const newSessionId = data?.session_id
-        if (newSessionId) setSessionId(newSessionId)
+        if (newSessionId) {
+          setSessionId(newSessionId)
+          // 该会话尚未出现在侧边栏（新建的会话）→ 本地乐观插入 + 一次列表对齐，
+          // 替代原先 setSessionId 触发的 1+2N 全量重载
+          const known = useChatStore.getState().sessions.some(x => x.id === newSessionId)
+          if (!known) {
+            const firstUser = messagesStateRef.current.find(m => m.role === 'user')
+            upsertLocalSession(newSessionId, firstUser ? truncateTitle(firstUser.content) : '')
+            void refreshSessionIds(newSessionId)
+          }
+        }
         // 保存最终的 context_usage（覆盖 chat.context_info 可能先收到的值）
         if (data?.context_usage) setContextUsage(data.context_usage)
         // 保存指令集到 store，供历史消息渲染使用
@@ -767,7 +783,18 @@ export default function Chat() {
       }
     })
     return unsub
-  }, [onMessage])
+    // 依赖项均为 zustand store 的稳定 action 引用（身份恒定），不会导致重复订阅
+  }, [
+    onMessage,
+    setThinkingChunk,
+    clearThinking,
+    setContextUsage,
+    clearContextUsage,
+    setInstructionSets,
+    setSessionId,
+    refreshSessionIds,
+    upsertLocalSession,
+  ])
 
   // 自动滚动到底部
   const scrollToBottom = useCallback(() => {
@@ -805,15 +832,17 @@ export default function Chat() {
     }
   }, [newChatFlag, send, setSessionId, clearThinking])
 
-  // 选中历史会话 → 加载消息记录
+  // 选中历史会话 → 渲染消息记录
+  // 注意：不再要求 historyMessages.length > 0 —— 空会话也要走完这段，
+  // 否则点击一个没有消息的历史会话会残留下上一个会话的内容。
+  // 缓存命中的消息由 selectSession 同步写入 historyMessages，因此这里几乎立即渲染。
   useEffect(() => {
-    if (selectedSessionId && historyMessages.length > 0) {
-      setMessages(mapHistoryToDisplay(historyMessages, selectedSessionId, instructionSetsBySession))
-      clearThinking()
-      setShowThinking(false)
-      setSessionId(selectedSessionId)
-      setIsTyping(false)
-    }
+    if (!selectedSessionId) return
+    setMessages(mapHistoryToDisplay(historyMessages, selectedSessionId, instructionSetsBySession))
+    clearThinking()
+    setShowThinking(false)
+    setSessionId(selectedSessionId)
+    setIsTyping(false)
   }, [selectedSessionId, historyMessages, setSessionId, clearThinking, instructionSetsBySession])
 
   const { label, color, icon: StatusIcon } = statusConfig[status]
@@ -983,6 +1012,7 @@ export default function Chat() {
 
     if (wsReady) {
       // 通过 WebSocket 发送 — 携带 session_id / mode / file_ids 匹配后端 StandardChatEventTemplate
+      // session_id 必须是**明文**（后端 WS 业务层直接拿它查库），store 内已统一存明文
       const payload: Record<string, unknown> = { message: text }
       if (sessionId) payload.session_id = sessionId
       const _mode = useChatStore.getState().currentMode
@@ -993,6 +1023,11 @@ export default function Chat() {
         .filter(c => c.status === 'done' && c.fileHash)
         .map(c => c.fileHash!)
       if (fileIds.length > 0) payload.file_ids = fileIds
+      // 新会话首条消息：先把侧边栏行本地插入（标题取本条提问），
+      // 避免等待 /chat/sessions 重拉才出现，也不再触发 1+2N 全量刷新
+      if (sessionId && !useChatStore.getState().sessions.some(x => x.id === sessionId)) {
+        upsertLocalSession(sessionId, truncateTitle(text))
+      }
       // 发送并捕获返回的 request_id，关联到刚添加的用户消息
       send('chat.send', payload).then(sentMsg => {
         const rid = sentMsg?.request_id
@@ -1028,7 +1063,7 @@ export default function Chat() {
       }, 1200 + Math.random() * 1800)
     }
     // fileChips 必须入依赖：file_ids 从 chip 读取，否则闭包内会拿到上传前的旧值（空数组）
-  }, [input, isTyping, wsReady, send, sessionId, clearThinking, fileChips])
+  }, [input, isTyping, wsReady, send, sessionId, clearThinking, clearContextUsage, fileChips, upsertLocalSession])
 
   // 键盘事件
   const handleKeyDown = useCallback(
@@ -1041,24 +1076,17 @@ export default function Chat() {
     [handleSend],
   )
 
-  // 删除成功后重新拉取当前会话消息，保证与服务端一致（历史会话 + 实时会话都适用）
+  // 删除成功后强制重校验当前会话（走 store 缓存，同时更新 sessionCache 与镜像，
+  // 避免短时间内切走再切回时读到已删除的旧消息）
   const reloadMessages = useCallback(async () => {
     const targetSession = selectedSessionId || sessionId
     if (!targetSession) return
     try {
-      const res = await fetchSessionMessages(targetSession)
-      if (res.code === 1001 && res.data) {
-        setMessages(mapHistoryToDisplay(res.data, targetSession, instructionSetsBySession))
-        useChatStore.setState({ historyMessages: res.data })
-      } else if (res.code === 1001) {
-        // 删除后会话已空
-        setMessages([])
-        useChatStore.setState({ historyMessages: [] })
-      }
+      await revalidateSession(targetSession)
     } catch {
       // 拉取失败：保持当前本地状态
     }
-  }, [selectedSessionId, sessionId, instructionSetsBySession])
+  }, [selectedSessionId, sessionId, revalidateSession])
 
   // 二次确认后批量删除选中的问答组（对接后端 message_delete 批量接口，全或无语义）
   const handleBatchDelete = useCallback(async () => {
@@ -1294,7 +1322,13 @@ export default function Chat() {
         </div>
 
       {/* ===== 内容区域 ===== */}
-      {isWelcome ? (
+      {isSessionLoading ? (
+        /* 首次进入某个历史会话（缓存未命中）→ 轻量加载态，而不是空会话欢迎页 */
+        <div className={styles.sessionLoading}>
+          <Loader2 size={18} className={styles.spin} />
+          <span className={styles.sessionLoadingText}>正在加载会话记录...</span>
+        </div>
+      ) : isWelcome ? (
         <div className={styles.welcome}>
           <NeuralNetworkIcon variant="background" />
           <div className={styles.welcomeContent}>
