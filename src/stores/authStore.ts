@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { logoutUser } from '@/api/user'
 import { clearKeyCache } from '@/utils/keyManager'
 import { clearIdCodecCache } from '@/utils/idCodec'
+import { clearUsageCache } from '@/utils/usageCache'
 
 interface UserInfo {
   username: string
@@ -33,6 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem('token')
       clearKeyCache()
       clearIdCodecCache()
+      clearUsageCache()
       set({ user: null, loaded: false })
       window.location.href = '/login'
     }

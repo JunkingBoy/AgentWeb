@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { fetchSessions, fetchSessionMessages, deleteSessionAPI, fetchModes, type ChatMessage } from '@/api/chat'
 import { fetchInstructionSets } from '@/api/instruction'
 import { toPlainId, toPlainIdSafe } from '@/utils/idCodec'
+import { invalidateUsage } from '@/utils/usageCache'
 import { dedupe, mapLimit, createSemaphore } from '@/utils/concurrency'
 import type { ContextUsage, PromptMode, InstructionSetItem } from '@/types/api'
 
@@ -341,7 +342,14 @@ export const useChatStore = create<ChatState>((set) => ({
     try {
       const res = await deleteSessionAPI(sessionId)
       if (res.code === 1001) {
-        const prevSelected = useChatStore.getState().selectedSessionId
+        const st = useChatStore.getState()
+        const prevSelected = st.selectedSessionId
+        // 会话软删后，它的用量记录也会级联软删（后端 not_found）→ 本地缓存一并清掉
+        const removedMessages = [
+          ...(st.sessionCache[sessionId]?.messages ?? []),
+          ...(st.selectedSessionId === sessionId ? st.historyMessages : []),
+        ]
+        invalidateUsage([...new Set(removedMessages.map(m => m.request_id))])
         set(s => {
           const nextCache = { ...s.sessionCache }
           delete nextCache[sessionId]
@@ -365,7 +373,9 @@ export const useChatStore = create<ChatState>((set) => ({
     }
   },
 
-  deleteMessage: (requestId) =>
+  deleteMessage: (requestId) => {
+    // 消息软删后用量接口返回 not_found（两张表同事务软删），本地缓存一并清掉
+    invalidateUsage([requestId])
     set(s => {
       const drop = (list: ChatMessage[]) => list.filter(m => m.request_id !== requestId)
       // 同步清理缓存，避免短时间内切回该会话时又看到已删除的消息
@@ -383,7 +393,8 @@ export const useChatStore = create<ChatState>((set) => ({
         historyMessages: drop(s.historyMessages),
         ...(cacheChanged ? { sessionCache: trimSessionCache(nextCache, s.selectedSessionId ?? undefined) } : {}),
       }
-    }),
+    })
+  },
 
   /* ===== 指令集（按需拉取） ===== */
 
