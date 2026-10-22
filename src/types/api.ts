@@ -90,3 +90,31 @@ export interface FileUploadBatchResponse {
   files: FileUploadResponse[]
   total: number
 }
+
+/**
+ * 单轮 LLM 用量 — 对应后端 GET /chat/usage 的 data
+ * （标准用量视图 StandardLLMUsageViewTemplate，全部为 DeepSeek API 原始值，无本地估算）
+ *
+ * 所有数字字段都可能为 null：上游没返回就是 null，前端一律展示 “—”，
+ * **绝不能把 null 当 0**，否则缓存命中率/合计都会算错。
+ */
+export interface LLMUsage {
+  model: string | null
+  prompt_tokens: number | null
+  prompt_cache_hit_tokens: number | null
+  prompt_cache_miss_tokens: number | null
+  completion_tokens: number | null
+  reasoning_tokens: number | null
+  total_tokens: number | null
+  finish_reason: string | null
+  /** 用量落库时间（ISO 8601）。UI 的“获取时间”用请求时间，不用该字段 */
+  c_time: string | null
+}
+
+/** 批量用量查询的单项 — 对应 POST /chat/usage/batch 的 data 元素 */
+export interface LLMUsageBatchItem {
+  /** 原样回显客户端提交的 request_id 密文（不能用于业务判断） */
+  request_id: string
+  /** 缺失 / 已软删 / 越权的 id 为 null */
+  usage: LLMUsage | null
+}

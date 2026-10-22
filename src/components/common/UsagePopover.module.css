@@ -1,0 +1,341 @@
+/* 单轮 token 用量气泡 — 参考 ref 图的浅色卡片风格，颜色全部走主题变量 */
+
+.popover {
+  z-index: 80;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 12px 14px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.16),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+  outline: none;
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+
+.popover[data-state='open'] {
+  animation: usagePopIn 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.popover[data-state='closed'] {
+  animation: usagePopOut 0.12s ease-in;
+}
+
+@keyframes usagePopIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes usagePopOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+}
+
+.arrow {
+  fill: var(--popover);
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+/* ===== 触发徽标：🗄 用量 15.3M tok ===== */
+
+.chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.chip:hover,
+.chip[data-state='open'] {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.chipIcon {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.chipLabel {
+  color: var(--color-text-tertiary);
+}
+
+.chipValue {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chipEmpty {
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.chipUnit {
+  margin-left: 1px;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+}
+
+/* ===== 头部 ===== */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 20px;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.titleIcon {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.unit {
+  margin-left: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.rule {
+  height: 1px;
+  margin: 8px -2px 6px;
+  background: var(--color-border);
+}
+
+/* ===== 字段行 ===== */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 21px;
+  padding: 2px 0;
+}
+
+.label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.value {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.valueMono {
+  max-width: 210px;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 骨架屏 ===== */
+
+.skeleton {
+  display: inline-block;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-border-light) 25%,
+    var(--color-bg-tertiary) 37%,
+    var(--color-border-light) 63%
+  );
+  background-size: 400% 100%;
+  animation: usageShimmer 1.2s ease infinite;
+}
+
+.skeletonLabel {
+  width: 62px;
+}
+
+.skeletonValue {
+  height: 10px;
+}
+
+.skeletonTotal {
+  width: 68px;
+  height: 14px;
+}
+
+@keyframes usageShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ===== 空态 / 错误态 ===== */
+
+.stateBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 14px 6px 8px;
+  text-align: center;
+}
+
+.stateIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 3px;
+  border-radius: 50%;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-tertiary);
+}
+
+.stateIconError {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.stateTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.stateDesc {
+  max-width: 232px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--color-text-tertiary);
+}
+
+.textBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.textBtn:hover {
+  background: var(--color-primary-bg);
+}
+
+/* ===== 底部：获取时间 ===== */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.footerLabel {
+  white-space: nowrap;
+}
+
+.footerValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover[data-state='open'],
+  .popover[data-state='closed'],
+  .skeleton {
+    animation: none;
+  }
+}

@@ -45,6 +45,7 @@ import NeuralNetworkIcon from '@/components/common/NeuralNetworkIcon'
 import ChatAvatar from './ChatAvatar'
 import BatchDeleteBar from '@/components/common/BatchDeleteBar'
 import CommonDialog from '@/components/common/CommonDialog'
+import UsagePopover from '@/components/common/UsagePopover'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSidebarContext } from '@/contexts/SidebarContext'
 import styles from './index.module.css'
@@ -395,6 +396,10 @@ const MessageList = memo(function MessageList({
                   <Copy size={13} />
                 )}
               </button>
+              {/* 用量入口：紧邻删除图标之前；只有 AI 回复携带 request_id 时才有 */}
+              {msg.role === 'agent' && msg.requestId && (
+                <UsagePopover requestId={msg.requestId} />
+              )}
               {/* 只有 AI 回复下放删除按钮，作为整组问答的选中入口；用户提问不提供删除入口 */}
               {msg.role === 'agent' && msg.requestId && (
                 <button
